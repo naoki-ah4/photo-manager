@@ -1,4 +1,6 @@
+mod commands;
 mod db;
+mod scanner;
 
 use tauri::Manager;
 
@@ -14,6 +16,10 @@ pub fn run() {
 
             let conn = db::init_db(&app_data_dir).expect("failed to initialize database");
 
+            app.manage(db::DbState {
+                conn: std::sync::Mutex::new(conn),
+            });
+
             // tauri-plugin-sql uses the same DB file
             let db_url = format!(
                 "sqlite:{}",
@@ -21,11 +27,10 @@ pub fn run() {
             );
             app.manage(db_url.clone());
 
-            drop(conn);
-
             Ok(())
         })
         .plugin(tauri_plugin_sql::Builder::default().build())
+        .invoke_handler(tauri::generate_handler![commands::scan_folder])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

@@ -20,6 +20,8 @@ CREATE TABLE IF NOT EXISTS photos (
     file_path TEXT NOT NULL UNIQUE,
     file_name TEXT NOT NULL,
     file_size INTEGER NOT NULL,
+    file_modified_at TEXT NOT NULL,
+    metadata_extracted_at TEXT,
     file_hash TEXT,
     width INTEGER,
     height INTEGER,

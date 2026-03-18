@@ -1,8 +1,13 @@
 use refinery::embed_migrations;
 use rusqlite::Connection;
 use std::path::Path;
+use std::sync::Mutex;
 
 embed_migrations!("migrations");
+
+pub struct DbState {
+    pub conn: Mutex<Connection>,
+}
 
 pub fn init_db(app_data_dir: &Path) -> Result<Connection, Box<dyn std::error::Error>> {
     std::fs::create_dir_all(app_data_dir)?;
