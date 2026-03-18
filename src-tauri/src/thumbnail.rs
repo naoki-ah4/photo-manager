@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
 use image::imageops::FilterType;
 use image::ImageFormat;
+use rayon::{prelude::*, ThreadPoolBuilder};
 use redb::{Database, ReadableDatabase, TableDefinition};
 use rusqlite::{params, Connection};
 use std::io::Cursor;
@@ -48,7 +49,7 @@ struct PhotoForThumbnail {
     file_path: String,
 }
 
-/// 指定IDの写真のサムネイルを生成してredbに保存し、thumbnail_generated_atを更新する。
+/// 指定IDの写真のサムネイルを並列生成してredbに保存し、thumbnail_generated_atを更新する。
 /// 処理した写真の件数を返す。
 pub fn generate_for_ids(
     conn: &Connection,
@@ -56,24 +57,38 @@ pub fn generate_for_ids(
     photo_ids: &[String],
 ) -> Result<usize, Box<dyn std::error::Error>> {
     let photos = fetch_by_ids(conn, photo_ids)?;
-    let mut count = 0;
 
-    for photo in &photos {
-        match generate_thumbnail(Path::new(&photo.file_path)) {
-            Ok(data) => {
-                store.set(&photo.id, &data)?;
-                let now: DateTime<Utc> = Utc::now();
-                conn.execute(
-                    "UPDATE photos SET thumbnail_generated_at = ?1, updated_at = ?1 WHERE id = ?2",
-                    params![now.to_rfc3339(), photo.id],
-                )?;
-                count += 1;
-            }
-            Err(_) => continue, // 読み取れないファイルはスキップ
-        }
+    // 物理コア数 - 1 でスレッドプールを構築（最低1スレッド）
+    let num_threads = num_cpus::get_physical().saturating_sub(1).max(1);
+    let pool = ThreadPoolBuilder::new()
+        .num_threads(num_threads)
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    // 画像処理を並列実行（CPU負荷の高い部分）
+    let results: Vec<_> = pool.install(|| {
+        photos
+            .par_iter()
+            .filter_map(|photo| {
+                generate_thumbnail(Path::new(&photo.file_path))
+                    .ok()
+                    .map(|data| (&photo.id, data))
+            })
+            .collect()
+    });
+
+    // redb書き込み・SQLite更新は直列
+    let now: DateTime<Utc> = Utc::now();
+    let now_str = now.to_rfc3339();
+    for (id, data) in &results {
+        store.set(id, data)?;
+        conn.execute(
+            "UPDATE photos SET thumbnail_generated_at = ?1, updated_at = ?1 WHERE id = ?2",
+            params![now_str, id],
+        )?;
     }
 
-    Ok(count)
+    Ok(results.len())
 }
 
 fn fetch_by_ids(
