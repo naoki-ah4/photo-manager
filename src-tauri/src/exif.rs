@@ -11,6 +11,8 @@ struct PhotoForExif {
     file_path: String,
 }
 
+const CHUNK_SIZE: usize = 100;
+
 /// 未処理またはファイル更新後にEXIF未抽出の写真を対象にメタデータを抽出する。
 /// 処理した写真の件数を返す。
 pub fn extract_pending(conn: &Mutex<Connection>) -> Result<usize, rusqlite::Error> {
@@ -20,15 +22,24 @@ pub fn extract_pending(conn: &Mutex<Connection>) -> Result<usize, rusqlite::Erro
         fetch_pending(&conn)?
     };
 
-    let count = photos.len();
+    let mut count = 0;
 
-    for photo in &photos {
+    for chunk in photos.chunks(CHUNK_SIZE) {
         // EXIF読み取り (ロックなし)
-        let extracted = read_exif(Path::new(&photo.file_path));
+        let results: Vec<_> = chunk
+            .iter()
+            .map(|p| (&p.id, read_exif(Path::new(&p.file_path))))
+            .collect();
 
-        // UPDATE (短時間ロック)
-        let conn = conn.lock().unwrap();
-        persist(&conn, &photo.id, extracted)?;
+        // 一括UPDATE (1回のロック + トランザクション)
+        let mut conn = conn.lock().unwrap();
+        let tx = conn.transaction()?;
+        for (id, extracted) in &results {
+            persist(&tx, id, extracted)?;
+        }
+        tx.commit()?;
+
+        count += results.len();
     }
 
     Ok(count)
@@ -161,7 +172,7 @@ fn parse_gps_coord(
     Some(decimal * sign)
 }
 
-fn persist(conn: &Connection, photo_id: &str, exif: ExtractedExif) -> Result<(), rusqlite::Error> {
+fn persist(conn: &Connection, photo_id: &str, exif: &ExtractedExif) -> Result<(), rusqlite::Error> {
     let now: DateTime<Utc> = Utc::now();
     conn.execute(
         "UPDATE photos SET
