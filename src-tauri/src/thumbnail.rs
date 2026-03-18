@@ -1,14 +1,14 @@
 use chrono::{DateTime, Utc};
 use image::imageops::FilterType;
 use image::ImageFormat;
-use rayon::{prelude::*, ThreadPoolBuilder};
 use redb::{Database, ReadableDatabase, TableDefinition};
-use rusqlite::{params, Connection};
+use rusqlite::params;
 use std::io::Cursor;
 use std::path::Path;
 
+use crate::db::{DbState, ThumbnailState};
+
 const THUMBNAIL_SIZE: u32 = 256;
-const CHUNK_SIZE: usize = 100;
 const THUMBNAILS: TableDefinition<&str, &[u8]> = TableDefinition::new("thumbnails");
 
 pub struct ThumbnailStore {
@@ -45,88 +45,77 @@ impl ThumbnailStore {
     }
 }
 
-struct PhotoForThumbnail {
-    id: String,
-    file_path: String,
-}
-
-/// 指定IDの写真のサムネイルを並列生成してredbに保存し、thumbnail_generated_atを更新する。
-/// 処理した写真の件数を返す。
-pub fn generate_for_ids(
-    conn: &Connection,
-    store: &ThumbnailStore,
-    photo_ids: &[String],
-) -> Result<usize, Box<dyn std::error::Error>> {
-    let photos = fetch_by_ids(conn, photo_ids)?;
-
-    // 物理コア数 - 1 でスレッドプールを構築（最低1スレッド）
-    let num_threads = num_cpus::get_physical().saturating_sub(1).max(1);
-    let pool = ThreadPoolBuilder::new()
-        .num_threads(num_threads)
-        .build()
-        .map_err(|e| e.to_string())?;
-
-    let mut total = 0;
-
-    for chunk in photos.chunks(CHUNK_SIZE) {
-        // 画像処理を並列実行（CPU負荷の高い部分）
-        let results: Vec<_> = pool.install(|| {
-            chunk
-                .par_iter()
-                .filter_map(|photo| {
-                    generate_thumbnail(Path::new(&photo.file_path))
-                        .ok()
-                        .map(|data| (&photo.id, data))
-                })
-                .collect()
-        });
-
-        // redb書き込み・SQLite更新は直列
-        let now: DateTime<Utc> = Utc::now();
-        let now_str = now.to_rfc3339();
-        for (id, data) in &results {
-            store.set(id, data)?;
-            conn.execute(
-                "UPDATE photos SET thumbnail_generated_at = ?1, updated_at = ?1 WHERE id = ?2",
-                params![now_str, id],
-            )?;
-        }
-
-        total += results.len();
+/// サムネイルリクエストを処理する。
+/// キャッシュがあればそのまま返し、なければ singleflight + semaphore で並行制御しつつ生成する。
+/// allow_generate=false の場合、キャッシュミス時は None を返す。
+pub fn handle_request(
+    thumb_state: &ThumbnailState,
+    db_state: &DbState,
+    photo_id: &str,
+    allow_generate: bool,
+) -> Option<Vec<u8>> {
+    // redbにキャッシュがあればそのまま返す
+    if let Ok(Some(data)) = thumb_state.store.get(photo_id) {
+        return Some(data);
     }
 
-    Ok(total)
+    if !allow_generate {
+        return None;
+    }
+
+    // singleflight で同じ photo_id の重複生成を防止
+    let data = thumb_state.flight.work(photo_id, || {
+        // セマフォで同時生成数を制限
+        let guard = thumb_state.semaphore.access();
+
+        // SELECT file_path (短時間ロック)
+        let file_path: Option<String> = {
+            let conn = db_state.conn.lock().unwrap();
+            conn.query_row(
+                "SELECT file_path FROM photos WHERE id = ?1",
+                params![photo_id],
+                |row| row.get(0),
+            )
+            .ok()
+        };
+
+        let Some(file_path) = file_path else {
+            drop(guard);
+            return Vec::new();
+        };
+
+        // 画像処理 (ロックなし)
+        let data = match generate_thumbnail(Path::new(&file_path)) {
+            Ok(d) => d,
+            Err(_) => {
+                drop(guard);
+                return Vec::new();
+            }
+        };
+
+        // redb 書き込み + SQLite UPDATE (短時間ロック)
+        let _ = thumb_state.store.set(photo_id, &data);
+        {
+            let conn = db_state.conn.lock().unwrap();
+            let now: DateTime<Utc> = Utc::now();
+            let _ = conn.execute(
+                "UPDATE photos SET thumbnail_generated_at = ?1, updated_at = ?1 WHERE id = ?2",
+                params![now.to_rfc3339(), photo_id],
+            );
+        }
+
+        drop(guard);
+        data
+    });
+
+    if data.is_empty() {
+        None
+    } else {
+        Some(data)
+    }
 }
 
-fn fetch_by_ids(
-    conn: &Connection,
-    photo_ids: &[String],
-) -> Result<Vec<PhotoForThumbnail>, rusqlite::Error> {
-    let placeholders = photo_ids
-        .iter()
-        .enumerate()
-        .map(|(i, _)| format!("?{}", i + 1))
-        .collect::<Vec<_>>()
-        .join(", ");
-
-    let sql = format!(
-        "SELECT id, file_path FROM photos WHERE id IN ({})",
-        placeholders
-    );
-
-    let mut stmt = conn.prepare(&sql)?;
-    let params = rusqlite::params_from_iter(photo_ids.iter());
-
-    let rows = stmt.query_map(params, |row| {
-        Ok(PhotoForThumbnail {
-            id: row.get(0)?,
-            file_path: row.get(1)?,
-        })
-    })?
-    .collect::<Result<Vec<_>, _>>();
-    rows
-}
-
+/// ファイルパスからサムネイルを生成して返す。DB操作は行わない。
 fn generate_thumbnail(path: &Path) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
     let img = image::open(path)?;
 

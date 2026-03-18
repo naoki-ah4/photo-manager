@@ -2,35 +2,39 @@
 
 ## 概要
 
-指定された写真のサムネイルを生成し、redb（KVS）に保存する。`image` クレートで画像処理、`rayon` で並列化。
+写真のサムネイルをオンザフライで生成し、redb（KVS）にキャッシュする。`image` クレートで画像処理を行い、`singleflight` + `std-semaphore` で並行制御する。
 
-## Tauriコマンド
+## 配信方式
 
-### `generate_thumbnails`
+カスタムプロトコル `thumb://` でサムネイルを配信する。フロントからは `<img>` の `src` に直接指定できる。
 
-指定IDの写真のサムネイルを生成する。
+```
+thumb://localhost/{photo_id}                  — キャッシュがなければ生成して返す
+thumb://localhost/{photo_id}?generate=false    — キャッシュがなければ404を返す
+```
 
-| パラメータ | 型 | 必須 | 説明 |
-|-----------|------|:---:|------|
-| `photo_ids` | `Vec<String>` | Yes | サムネイル生成対象の写真IDリスト |
-
-戻り値: 処理した写真の件数 (`usize`)
+ブラウザキャッシュが有効になるため、同じサムネイルの再リクエストはネットワーク層で解決される。
 
 ## 処理フロー
 
 ```
-1. 対象写真の取得 (fetch_by_ids)
-   photo_idsでSELECT
+1. redbキャッシュ確認
+   ヒット → 即返却
+   ↓ ミス
+2. generate=false → 404
    ↓
-2. チャンク分割 (100枚ずつ)
+3. singleflight (同じphoto_idの重複生成を防止)
    ↓
-3. 画像処理 — 並列 (rayon)
+4. セマフォ取得 (同時生成数を制限)
+   ↓
+5. SELECT file_path (SQLite、短時間ロック)
+   ↓
+6. 画像処理 (ロックなし)
    デコード → 正方形クロップ → 256pxリサイズ → WebPエンコード
    ↓
-4. 保存 — 直列
-   redbに書き込み + SQLiteのthumbnail_generated_atを更新
+7. redb書き込み + SQLite UPDATE (短時間ロック)
    ↓
-   (次のチャンクへ戻る)
+8. セマフォ解放 → 返却
 ```
 
 ## サムネイル仕様
@@ -55,51 +59,45 @@
 
 ### SQLite
 
-`photos.thumbnail_generated_at` で生成済みかどうかを管理する。差分更新の仕組みはEXIF抽出と同様:
+`photos.thumbnail_generated_at` で生成済みかどうかを管理する。
 
-```sql
-WHERE thumbnail_generated_at IS NULL
-   OR file_modified_at > thumbnail_generated_at
-```
+## 並行制御
 
-## 並列化
+### 重複生成の防止 (singleflight)
 
-### スレッドプール
+`singleflight::Group` で同じ `photo_id` のリクエストをまとめる。例えば同じサムネイルに対して10件のリクエストが同時に来ても、画像処理が走るのは1回だけで、残り9件はその結果を共有する。
 
-- `rayon` でスレッドプールを構築
-- スレッド数: 物理コア数 - 1（`num_cpus::get_physical() - 1`、最低1スレッド）
+### 同時生成数の制限 (std-semaphore)
+
+`std_semaphore::Semaphore` で同時に画像処理を行うスレッド数を制限する。
+
+- 上限: 物理コア数 - 1（`num_cpus::get_physical() - 1`、最低1スレッド）
 - 1コアをOS・UIスレッド用に確保する
+- redb書き込みが詰まった場合もセマフォが解放されないため、自然にバックプレッシャーがかかる
 
-### チャンク処理
+### ロックの最小化
 
-100枚単位で並列生成→書き込みを繰り返す。全サムネイルを一括生成するとエンコード済みデータがメモリに滞留するため、チャンクで上限を制御する。
+SQLiteの `Mutex<Connection>` は画像処理中は保持しない。SELECT と UPDATE の瞬間だけロックを取得する。
 
 ```
-チャンク1 (100枚): [並列生成] → [直列書き込み]
-チャンク2 (100枚): [並列生成] → [直列書き込み]
-...
+conn.lock() → SELECT file_path → unlock
+  画像処理 (ロックなし)
+conn.lock() → UPDATE thumbnail_generated_at → unlock
 ```
-
-メモリ使用量は常に100枚分（1〜3MB程度）に抑えられる。
-
-### CPU処理とI/Oの分離
-
-| 処理 | 実行方式 | 理由 |
-|------|---------|------|
-| デコード・クロップ・リサイズ・エンコード | 並列 (rayon) | CPU負荷が高く、写真ごとに独立 |
-| redb書き込み | 直列 | 書き込みは排他ロックが必要 |
-| SQLite UPDATE | 直列 | 同上 |
 
 ## エラー処理
 
-- 読み取れないファイル（破損、非対応フォーマット等）はスキップし、残りの処理を続行する
-- redb/SQLiteの書き込みエラーは即座にエラーを返す
+- 読み取れないファイル（破損、非対応フォーマット等）はスキップし、空のレスポンス（404）を返す
+- redb/SQLiteの書き込みエラーは無視する（サムネイルは再生成可能なため）
 
 ## モジュール構成
 
 ```
-src-tauri/src/thumbnail.rs — ThumbnailStore + サムネイル生成の全処理
+src-tauri/src/thumbnail.rs — ThumbnailStore + handle_request + generate_thumbnail
 ```
+
+- `handle_request`: キャッシュ確認・singleflight・セマフォ・生成・保存の全フローを担当
+- `generate_thumbnail`: 純粋な画像処理（デコード→クロップ→リサイズ→エンコード）
 
 ## 将来の拡張
 

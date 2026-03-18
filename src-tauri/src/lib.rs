@@ -4,8 +4,10 @@ mod exif;
 mod scanner;
 mod thumbnail;
 
-use tauri::Manager;
+use singleflight::Group;
+use std_semaphore::Semaphore;
 use tauri::http::Response;
+use tauri::Manager;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -21,11 +23,16 @@ pub fn run() {
             let store = thumbnail::ThumbnailStore::open(&app_data_dir)
                 .expect("failed to initialize thumbnail store");
 
+            let max_concurrent =
+                (num_cpus::get_physical().saturating_sub(1)).max(1) as isize;
+
             app.manage(db::DbState {
                 conn: std::sync::Mutex::new(conn),
             });
             app.manage(db::ThumbnailState {
-                store: std::sync::Mutex::new(store),
+                store,
+                flight: Group::new(),
+                semaphore: Semaphore::new(max_concurrent),
             });
 
             // tauri-plugin-sql uses the same DB file
@@ -40,16 +47,18 @@ pub fn run() {
         .register_uri_scheme_protocol("thumb", |ctx, req| {
             let uri = req.uri();
             let photo_id = uri.path().trim_start_matches('/');
+            let query = uri.query().unwrap_or("");
+            let allow_generate = !query.contains("generate=false");
 
-            let state = ctx.app_handle().state::<db::ThumbnailState>();
-            let store = state.store.lock().unwrap();
+            let thumb_state = ctx.app_handle().state::<db::ThumbnailState>();
+            let db_state = ctx.app_handle().state::<db::DbState>();
 
-            match store.get(photo_id) {
-                Ok(Some(data)) => Response::builder()
+            match thumbnail::handle_request(&thumb_state, &db_state, photo_id, allow_generate) {
+                Some(data) => Response::builder()
                     .header("Content-Type", "image/webp")
                     .body(data)
                     .unwrap(),
-                _ => Response::builder()
+                None => Response::builder()
                     .status(404)
                     .body(Vec::new())
                     .unwrap(),
@@ -60,7 +69,6 @@ pub fn run() {
             commands::scan_folder,
             commands::scan_all_watch_folders,
             commands::extract_exif,
-            commands::generate_thumbnails,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

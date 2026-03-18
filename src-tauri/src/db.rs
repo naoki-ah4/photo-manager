@@ -1,7 +1,9 @@
 use refinery::embed_migrations;
 use rusqlite::Connection;
+use singleflight::Group;
 use std::path::Path;
 use std::sync::Mutex;
+use std_semaphore::Semaphore;
 
 use crate::thumbnail::ThumbnailStore;
 
@@ -12,7 +14,9 @@ pub struct DbState {
 }
 
 pub struct ThumbnailState {
-    pub store: Mutex<ThumbnailStore>,
+    pub store: ThumbnailStore,
+    pub flight: Group<Vec<u8>>,
+    pub semaphore: Semaphore,
 }
 
 pub fn init_db(app_data_dir: &Path) -> Result<Connection, Box<dyn std::error::Error>> {

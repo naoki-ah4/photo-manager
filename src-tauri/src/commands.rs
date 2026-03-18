@@ -2,10 +2,9 @@ use std::path::PathBuf;
 
 use tauri::State;
 
-use crate::db::{DbState, ThumbnailState};
+use crate::db::DbState;
 use crate::exif;
 use crate::scanner;
-use crate::thumbnail;
 
 #[tauri::command]
 pub fn scan_folder(
@@ -73,15 +72,4 @@ pub fn scan_all_watch_folders(db: State<'_, DbState>) -> Result<usize, String> {
 pub fn extract_exif(db: State<'_, DbState>) -> Result<usize, String> {
     let conn = db.conn.lock().map_err(|e| e.to_string())?;
     exif::extract_pending(&conn).map_err(|e| e.to_string())
-}
-
-#[tauri::command]
-pub fn generate_thumbnails(
-    db: State<'_, DbState>,
-    thumbnails: State<'_, ThumbnailState>,
-    photo_ids: Vec<String>,
-) -> Result<usize, String> {
-    let conn = db.conn.lock().map_err(|e| e.to_string())?;
-    let store = thumbnails.store.lock().map_err(|e| e.to_string())?;
-    thumbnail::generate_for_ids(&conn, &store, &photo_ids).map_err(|e| e.to_string())
 }
