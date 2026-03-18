@@ -1,5 +1,6 @@
 mod commands;
 mod db;
+mod exif;
 mod scanner;
 
 use tauri::Manager;
@@ -30,7 +31,10 @@ pub fn run() {
             Ok(())
         })
         .plugin(tauri_plugin_sql::Builder::default().build())
-        .invoke_handler(tauri::generate_handler![commands::scan_folder])
+        .invoke_handler(tauri::generate_handler![
+            commands::scan_folder,
+            commands::extract_exif,
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
