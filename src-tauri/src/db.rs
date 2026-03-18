@@ -3,10 +3,16 @@ use rusqlite::Connection;
 use std::path::Path;
 use std::sync::Mutex;
 
+use crate::thumbnail::ThumbnailStore;
+
 embed_migrations!("migrations");
 
 pub struct DbState {
     pub conn: Mutex<Connection>,
+}
+
+pub struct ThumbnailState {
+    pub store: Mutex<ThumbnailStore>,
 }
 
 pub fn init_db(app_data_dir: &Path) -> Result<Connection, Box<dyn std::error::Error>> {
