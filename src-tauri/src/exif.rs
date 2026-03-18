@@ -10,8 +10,8 @@ struct PhotoForExif {
     file_path: String,
 }
 
-/// Extract EXIF metadata for all photos that are unprocessed or updated since last extraction.
-/// Returns the number of photos processed.
+/// 未処理またはファイル更新後にEXIF未抽出の写真を対象にメタデータを抽出する。
+/// 処理した写真の件数を返す。
 pub fn extract_pending(conn: &Connection) -> Result<usize, rusqlite::Error> {
     let photos = fetch_pending(conn)?;
     let count = photos.len();

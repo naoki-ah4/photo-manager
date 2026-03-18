@@ -6,34 +6,34 @@ use uuid::Uuid;
 
 use super::walk::ScannedEntry;
 
-/// Register a watch folder and insert all scanned entries into the DB.
-/// Returns the number of photos inserted.
-pub fn insert_scan_results(
-    conn: &Connection,
+/// スキャン結果（directories + photos）をDBにupsertする。
+/// 処理した写真の件数を返す。
+pub fn upsert_scan_results(
+    conn: &mut Connection,
+    watch_folder_id: &str,
     watch_folder_path: &Path,
-    recursive: bool,
     entries: &[ScannedEntry],
 ) -> Result<usize, rusqlite::Error> {
-    let watch_folder_id = Uuid::new_v4().to_string();
-    conn.execute(
-        "INSERT INTO watch_folders (id, path, recursive) VALUES (?1, ?2, ?3)",
-        params![
-            watch_folder_id,
-            watch_folder_path.to_string_lossy(),
-            recursive as i32,
-        ],
-    )?;
+    let tx = conn.transaction()?;
 
-    // Map directory paths to their IDs, so we can look up parent_id
+    // ディレクトリパス → ID のキャッシュ（parent_id の解決に使用）
     let mut dir_ids: HashMap<PathBuf, String> = HashMap::new();
 
-    let mut inserted = 0;
+    let mut stmt = tx.prepare(
+        "INSERT INTO photos (id, directory_id, file_path, file_name, file_size, file_modified_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6)
+         ON CONFLICT(file_path) DO UPDATE SET
+             file_size = excluded.file_size,
+             file_modified_at = excluded.file_modified_at,
+             updated_at = datetime('now')",
+    )?;
 
+    let mut count = 0;
     for entry in entries {
         let dir_id = ensure_directory(
-            conn,
+            &tx,
             &entry.parent_dir,
-            &watch_folder_id,
+            watch_folder_id,
             watch_folder_path,
             &mut dir_ids,
         )?;
@@ -41,27 +41,26 @@ pub fn insert_scan_results(
         let photo_id = Uuid::new_v4().to_string();
         let modified_at: DateTime<Utc> = entry.file_modified_at.into();
         let modified_at = modified_at.to_rfc3339();
-        conn.execute(
-            "INSERT OR IGNORE INTO photos (id, directory_id, file_path, file_name, file_size, file_modified_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
-            params![
-                photo_id,
-                dir_id,
-                entry.file_path.to_string_lossy(),
-                entry.file_name,
-                entry.file_size as i64,
-                modified_at,
-            ],
-        )?;
-        inserted += 1;
+
+        stmt.execute(params![
+            photo_id,
+            dir_id,
+            entry.file_path.to_string_lossy(),
+            entry.file_name,
+            entry.file_size as i64,
+            modified_at,
+        ])?;
+        count += 1;
     }
 
-    Ok(inserted)
+    drop(stmt);
+    tx.commit()?;
+    Ok(count)
 }
 
-/// Ensure a directory and all its ancestors up to the watch folder root exist in the DB.
+/// 指定ディレクトリとwatch_folderルートまでの祖先ディレクトリをDBに登録する。
 fn ensure_directory(
-    conn: &Connection,
+    tx: &rusqlite::Transaction,
     dir_path: &Path,
     watch_folder_id: &str,
     watch_folder_root: &Path,
@@ -71,12 +70,12 @@ fn ensure_directory(
         return Ok(id.clone());
     }
 
-    // Recursively ensure parent exists first
+    // 親ディレクトリを先に再帰的に確定する
     let parent_id = if dir_path != watch_folder_root {
         dir_path
             .parent()
             .filter(|p| p.starts_with(watch_folder_root))
-            .map(|p| ensure_directory(conn, p, watch_folder_id, watch_folder_root, dir_ids))
+            .map(|p| ensure_directory(tx, p, watch_folder_id, watch_folder_root, dir_ids))
             .transpose()?
     } else {
         None
@@ -88,7 +87,7 @@ fn ensure_directory(
         .unwrap_or_default();
 
     let dir_id = Uuid::new_v4().to_string();
-    conn.execute(
+    tx.execute(
         "INSERT OR IGNORE INTO directories (id, watch_folder_id, parent_id, path, name)
          VALUES (?1, ?2, ?3, ?4, ?5)",
         params![

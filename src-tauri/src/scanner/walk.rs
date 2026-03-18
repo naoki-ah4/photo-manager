@@ -14,7 +14,7 @@ pub struct ScannedEntry {
     pub parent_dir: PathBuf,
 }
 
-/// Walk a directory and collect all supported image files.
+/// ディレクトリを走査し、対応フォーマットの画像ファイルを収集する。
 pub fn scan_folder(path: &Path, recursive: bool) -> Vec<ScannedEntry> {
     let walker = if recursive {
         WalkDir::new(path)

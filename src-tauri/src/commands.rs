@@ -9,6 +9,7 @@ use crate::scanner;
 #[tauri::command]
 pub fn scan_folder(
     db: State<'_, DbState>,
+    watch_folder_id: String,
     path: String,
     recursive: Option<bool>,
 ) -> Result<usize, String> {
@@ -20,8 +21,9 @@ pub fn scan_folder(
     let recursive = recursive.unwrap_or(true);
     let entries = scanner::scan_folder(&path, recursive);
 
-    let conn = db.conn.lock().map_err(|e| e.to_string())?;
-    scanner::insert_scan_results(&conn, &path, recursive, &entries).map_err(|e| e.to_string())
+    let mut conn = db.conn.lock().map_err(|e| e.to_string())?;
+    scanner::upsert_scan_results(&mut conn, &watch_folder_id, &path, &entries)
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
