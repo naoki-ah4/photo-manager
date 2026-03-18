@@ -33,6 +33,7 @@ pub fn run() {
         .plugin(tauri_plugin_sql::Builder::default().build())
         .invoke_handler(tauri::generate_handler![
             commands::scan_folder,
+            commands::scan_all_watch_folders,
             commands::extract_exif,
         ])
         .run(tauri::generate_context!())
