@@ -19,8 +19,10 @@ pub fn scan_folder(
     }
 
     let recursive = recursive.unwrap_or(true);
+    // FS走査 (ロックなし)
     let entries = scanner::scan_folder(&path, recursive);
 
+    // DB書き込み (ロック)
     let mut conn = db.conn.lock().map_err(|e| e.to_string())?;
     scanner::upsert_scan_results(&mut conn, &watch_folder_id, &path, &entries)
         .map_err(|e| e.to_string())
@@ -34,13 +36,13 @@ pub fn scan_all_watch_folders(db: State<'_, DbState>) -> Result<usize, String> {
         recursive: bool,
     }
 
-    let mut conn = db.conn.lock().map_err(|e| e.to_string())?;
-
+    // SELECT (短時間ロック)
     let folders = {
+        let conn = db.conn.lock().map_err(|e| e.to_string())?;
         let mut stmt = conn
             .prepare("SELECT id, path, recursive FROM watch_folders")
             .map_err(|e| e.to_string())?;
-        let folders = stmt
+        let rows = stmt
             .query_map([], |row| {
                 Ok(WatchFolder {
                     id: row.get(0)?,
@@ -51,7 +53,7 @@ pub fn scan_all_watch_folders(db: State<'_, DbState>) -> Result<usize, String> {
             .map_err(|e| e.to_string())?
             .collect::<Result<Vec<_>, _>>()
             .map_err(|e| e.to_string())?;
-        folders
+        rows
     };
 
     let mut total = 0;
@@ -60,7 +62,11 @@ pub fn scan_all_watch_folders(db: State<'_, DbState>) -> Result<usize, String> {
         if !path.is_dir() {
             continue;
         }
+        // FS走査 (ロックなし)
         let entries = scanner::scan_folder(&path, folder.recursive);
+
+        // DB書き込み (ロック)
+        let mut conn = db.conn.lock().map_err(|e| e.to_string())?;
         total += scanner::upsert_scan_results(&mut conn, &folder.id, &path, &entries)
             .map_err(|e| e.to_string())?;
     }
@@ -70,6 +76,5 @@ pub fn scan_all_watch_folders(db: State<'_, DbState>) -> Result<usize, String> {
 
 #[tauri::command]
 pub fn extract_exif(db: State<'_, DbState>) -> Result<usize, String> {
-    let conn = db.conn.lock().map_err(|e| e.to_string())?;
-    exif::extract_pending(&conn).map_err(|e| e.to_string())
+    exif::extract_pending(&db.conn).map_err(|e| e.to_string())
 }

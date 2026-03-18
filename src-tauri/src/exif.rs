@@ -4,6 +4,7 @@ use rusqlite::{params, Connection};
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
+use std::sync::Mutex;
 
 struct PhotoForExif {
     id: String,
@@ -12,13 +13,22 @@ struct PhotoForExif {
 
 /// 未処理またはファイル更新後にEXIF未抽出の写真を対象にメタデータを抽出する。
 /// 処理した写真の件数を返す。
-pub fn extract_pending(conn: &Connection) -> Result<usize, rusqlite::Error> {
-    let photos = fetch_pending(conn)?;
+pub fn extract_pending(conn: &Mutex<Connection>) -> Result<usize, rusqlite::Error> {
+    // SELECT (短時間ロック)
+    let photos = {
+        let conn = conn.lock().unwrap();
+        fetch_pending(&conn)?
+    };
+
     let count = photos.len();
 
     for photo in &photos {
+        // EXIF読み取り (ロックなし)
         let extracted = read_exif(Path::new(&photo.file_path));
-        persist(conn, &photo.id, extracted)?;
+
+        // UPDATE (短時間ロック)
+        let conn = conn.lock().unwrap();
+        persist(&conn, &photo.id, extracted)?;
     }
 
     Ok(count)
