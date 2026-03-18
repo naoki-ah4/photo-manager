@@ -8,6 +8,7 @@ use std::io::Cursor;
 use std::path::Path;
 
 const THUMBNAIL_SIZE: u32 = 256;
+const CHUNK_SIZE: usize = 100;
 const THUMBNAILS: TableDefinition<&str, &[u8]> = TableDefinition::new("thumbnails");
 
 pub struct ThumbnailStore {
@@ -65,30 +66,36 @@ pub fn generate_for_ids(
         .build()
         .map_err(|e| e.to_string())?;
 
-    // 画像処理を並列実行（CPU負荷の高い部分）
-    let results: Vec<_> = pool.install(|| {
-        photos
-            .par_iter()
-            .filter_map(|photo| {
-                generate_thumbnail(Path::new(&photo.file_path))
-                    .ok()
-                    .map(|data| (&photo.id, data))
-            })
-            .collect()
-    });
+    let mut total = 0;
 
-    // redb書き込み・SQLite更新は直列
-    let now: DateTime<Utc> = Utc::now();
-    let now_str = now.to_rfc3339();
-    for (id, data) in &results {
-        store.set(id, data)?;
-        conn.execute(
-            "UPDATE photos SET thumbnail_generated_at = ?1, updated_at = ?1 WHERE id = ?2",
-            params![now_str, id],
-        )?;
+    for chunk in photos.chunks(CHUNK_SIZE) {
+        // 画像処理を並列実行（CPU負荷の高い部分）
+        let results: Vec<_> = pool.install(|| {
+            chunk
+                .par_iter()
+                .filter_map(|photo| {
+                    generate_thumbnail(Path::new(&photo.file_path))
+                        .ok()
+                        .map(|data| (&photo.id, data))
+                })
+                .collect()
+        });
+
+        // redb書き込み・SQLite更新は直列
+        let now: DateTime<Utc> = Utc::now();
+        let now_str = now.to_rfc3339();
+        for (id, data) in &results {
+            store.set(id, data)?;
+            conn.execute(
+                "UPDATE photos SET thumbnail_generated_at = ?1, updated_at = ?1 WHERE id = ?2",
+                params![now_str, id],
+            )?;
+        }
+
+        total += results.len();
     }
 
-    Ok(results.len())
+    Ok(total)
 }
 
 fn fetch_by_ids(
