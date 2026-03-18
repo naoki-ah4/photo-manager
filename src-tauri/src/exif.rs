@@ -54,6 +54,7 @@ struct ExtractedExif {
     f_number: Option<f64>,
     exposure_time: Option<String>,
     focal_length: Option<f64>,
+    focal_length_35mm: Option<f64>,
     gps_latitude: Option<f64>,
     gps_longitude: Option<f64>,
 }
@@ -106,6 +107,10 @@ fn read_exif(path: &Path) -> ExtractedExif {
         f_number: get_rational(Tag::FNumber),
         exposure_time: get_str(Tag::ExposureTime),
         focal_length: get_rational(Tag::FocalLength),
+        focal_length_35mm: exif
+            .get_field(Tag::FocalLengthIn35mmFilm, In::PRIMARY)
+            .and_then(|f| f.value.get_uint(0))
+            .map(|v| v as f64),
         gps_latitude: gps.0,
         gps_longitude: gps.1,
     }
@@ -160,11 +165,12 @@ fn persist(conn: &Connection, photo_id: &str, exif: ExtractedExif) -> Result<(),
             f_number = ?8,
             exposure_time = ?9,
             focal_length = ?10,
-            gps_latitude = ?11,
-            gps_longitude = ?12,
-            metadata_extracted_at = ?13,
-            updated_at = ?13
-         WHERE id = ?14",
+            focal_length_35mm = ?11,
+            gps_latitude = ?12,
+            gps_longitude = ?13,
+            metadata_extracted_at = ?14,
+            updated_at = ?14
+         WHERE id = ?15",
         params![
             exif.width,
             exif.height,
@@ -176,6 +182,7 @@ fn persist(conn: &Connection, photo_id: &str, exif: ExtractedExif) -> Result<(),
             exif.f_number,
             exif.exposure_time,
             exif.focal_length,
+            exif.focal_length_35mm,
             exif.gps_latitude,
             exif.gps_longitude,
             now.to_rfc3339(),
@@ -198,6 +205,7 @@ impl Default for ExtractedExif {
             f_number: None,
             exposure_time: None,
             focal_length: None,
+            focal_length_35mm: None,
             gps_latitude: None,
             gps_longitude: None,
         }

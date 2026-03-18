@@ -1,5 +1,5 @@
 use chrono::{DateTime, Utc};
-use rusqlite::{params, Connection};
+use rusqlite::{params, Connection, OptionalExtension};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use uuid::Uuid;
@@ -81,6 +81,20 @@ fn ensure_directory(
         None
     };
 
+    // 既存のディレクトリIDがあればそれを使う
+    let existing_id: Option<String> = tx
+        .query_row(
+            "SELECT id FROM directories WHERE path = ?1",
+            params![dir_path.to_string_lossy()],
+            |row| row.get(0),
+        )
+        .optional()?;
+
+    if let Some(id) = existing_id {
+        dir_ids.insert(dir_path.to_path_buf(), id.clone());
+        return Ok(id);
+    }
+
     let dir_name = dir_path
         .file_name()
         .map(|n| n.to_string_lossy().into_owned())
@@ -88,7 +102,7 @@ fn ensure_directory(
 
     let dir_id = Uuid::new_v4().to_string();
     tx.execute(
-        "INSERT OR IGNORE INTO directories (id, watch_folder_id, parent_id, path, name)
+        "INSERT INTO directories (id, watch_folder_id, parent_id, path, name)
          VALUES (?1, ?2, ?3, ?4, ?5)",
         params![
             dir_id,

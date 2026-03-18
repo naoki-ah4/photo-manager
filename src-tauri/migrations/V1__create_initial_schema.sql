@@ -34,6 +34,7 @@ CREATE TABLE IF NOT EXISTS photos (
     f_number REAL,
     exposure_time TEXT,
     focal_length REAL,
+    focal_length_35mm REAL,
     gps_latitude REAL,
     gps_longitude REAL,
     rating INTEGER NOT NULL DEFAULT 0,
