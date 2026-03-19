@@ -9,7 +9,7 @@ import {
   type Photo,
   type WatchFolder,
 } from "./lib/commands";
-import { Thumbnail } from "./components/Thumbnail";
+import { Thumbnail } from "./components/atoms/Thumbnail";
 
 function App() {
   const [folderPath, setFolderPath] = useState("");
