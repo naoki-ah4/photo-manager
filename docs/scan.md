@@ -6,21 +6,19 @@
 
 ## Tauriコマンド
 
-### `scan_folder`
+### `scan_one`
 
-指定されたフォルダを走査し、結果をDBにupsertする。
+指定されたwatch_folderを走査し、結果をDBにupsertする。
 
 | パラメータ | 型 | 必須 | 説明 |
 |-----------|------|:---:|------|
 | `watch_folder_id` | `String` | Yes | 監視フォルダのID |
-| `path` | `String` | Yes | 走査対象のディレクトリパス |
-| `recursive` | `Option<bool>` | No | 再帰走査するか（デフォルト: `true`） |
 
 戻り値: 処理した写真の件数 (`usize`)
 
-### `scan_all_watch_folders`
+### `scan_all`
 
-`watch_folders` テーブルに登録された全フォルダを順次走査する。存在しないディレクトリはスキップされる。
+`watch_folders` テーブルに登録された全フォルダを順次走査する。内部的に `scan_one` を各watch_folderに対して呼び出す。存在しないディレクトリはスキップされる。
 
 | パラメータ | なし |
 |-----------|------|
@@ -35,6 +33,10 @@
    ↓
 2. DB永続化 (scanner::upsert_scan_results)
    トランザクション内でディレクトリ・写真をupsert
+   ↓
+3. 不在ファイルの削除
+   スキャン開始時刻より updated_at が古いphotosをDELETE
+   対応するサムネイルもredbから削除
 ```
 
 ### 1. ファイルシステム走査
@@ -69,6 +71,17 @@
    - 新規: INSERT
    - 既存: `file_size`, `file_modified_at`, `updated_at` を更新（`ON CONFLICT ... DO UPDATE`）
 
+### 3. 不在ファイルの削除
+
+upsert後、同一トランザクション内で以下を実行する:
+
+1. `updated_at < scan_started_at` のphotosのIDを取得
+2. 該当photosをDELETE
+3. photosが0件になったdirectoriesもDELETE
+4. トランザクション完了後、削除されたphoto_idのサムネイルをredbから削除
+
+**外付けHDD対策**: watch_folderのルートパスが存在しない場合はそのフォルダのスキャンをスキップする。接続されていないだけで写真が消えることはない。
+
 ## 対応フォーマット
 
 | 拡張子 |
@@ -85,7 +98,7 @@
 
 ## 差分更新の仕組み
 
-`photos` テーブルに以下のタイムスタンプを持つ:
+`photos` テーブルに以下のタイムスタンプ（UNIX TIME）を持つ:
 
 | カラム | 用途 |
 |--------|------|
@@ -106,10 +119,14 @@ WHERE metadata_extracted_at IS NULL
 ## モジュール構成
 
 ```
-src-tauri/src/scanner/
-  mod.rs        — pub use で公開API定義
-  walk.rs       — ファイルシステム走査 (scan_folder, ScannedEntry)
-  persist.rs    — DB永続化 (upsert_scan_results, ensure_directory)
+src-tauri/src/
+  scan.rs             — scan_one + scan_all（オーケストレーション）
+  scanner/
+    mod.rs            — pub use で公開API定義
+    walk.rs           — ファイルシステム走査 (scan_folder, ScannedEntry)
+    persist.rs        — DB永続化 (upsert_scan_results, ensure_directory)
 ```
 
-走査（I/O）と永続化（DB）を分離し、`walk.rs` はDBに依存しない。
+- `scan.rs` がscannerとthumbnailを統合するオーケストレーション層
+- `scanner/` は低レベルの走査・永続化に専念
+- 走査（I/O）と永続化（DB）を分離し、`walk.rs` はDBに依存しない

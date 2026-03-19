@@ -2,11 +2,11 @@
 
 ## 概要
 
-写真のサムネイルをオンザフライで生成し、redb（KVS）にキャッシュする。`image` クレートで画像処理を行い、`singleflight` + `std-semaphore` で並行制御する。
+写真のサムネイルをオンザフライで生成し、redb（KVS）にキャッシュする。`image` クレートで画像処理を行い、`std-semaphore` で並行制御する。
 
 ## 配信方式
 
-カスタムプロトコル `thumb://` でサムネイルを配信する。フロントからは `<img>` の `src` に直接指定できる。
+カスタムプロトコル `thumb://` でサムネイルを配信する。フロントからは `convertFileSrc(photoId, "thumb")` でプラットフォーム差を吸収したURLを取得し、`<img>` の `src` に指定する。
 
 ```
 thumb://localhost/{photo_id}                  — キャッシュがなければ生成して返す
@@ -14,6 +14,8 @@ thumb://localhost/{photo_id}?generate=false    — キャッシュがなけれ�
 ```
 
 ブラウザキャッシュが有効になるため、同じサムネイルの再リクエストはネットワーク層で解決される。
+
+プロトコルハンドラは `register_asynchronous_uri_scheme_protocol` で登録し、`std::thread::spawn` で非同期処理する。UIスレッドをブロックしない。
 
 ## 処理フロー
 
@@ -23,9 +25,9 @@ thumb://localhost/{photo_id}?generate=false    — キャッシュがなけれ�
    ↓ ミス
 2. generate=false → 404
    ↓
-3. singleflight (同じphoto_idの重複生成を防止)
+3. セマフォ取得 (同時生成数を制限)
    ↓
-4. セマフォ取得 (同時生成数を制限)
+4. redb再チェック (セマフォ待ち中に別スレッドが生成済みの可能性)
    ↓
 5. SELECT file_path (SQLite、短時間ロック)
    ↓
@@ -43,7 +45,7 @@ thumb://localhost/{photo_id}?generate=false    — キャッシュがなけれ�
 |------|-----|
 | サイズ | 256 x 256 px |
 | クロップ | 中央正方形クロップ |
-| リサイズアルゴリズム | Lanczos3 |
+| リサイズアルゴリズム | Triangle（バイリニア） |
 | 出力フォーマット | WebP |
 
 ## ストレージ
@@ -59,13 +61,9 @@ thumb://localhost/{photo_id}?generate=false    — キャッシュがなけれ�
 
 ### SQLite
 
-`photos.thumbnail_generated_at` で生成済みかどうかを管理する。
+`photos.thumbnail_generated_at` (UNIX TIME) で生成済みかどうかを管理する。
 
 ## 並行制御
-
-### 重複生成の防止 (singleflight)
-
-`singleflight::Group` で同じ `photo_id` のリクエストをまとめる。例えば同じサムネイルに対して10件のリクエストが同時に来ても、画像処理が走るのは1回だけで、残り9件はその結果を共有する。
 
 ### 同時生成数の制限 (std-semaphore)
 
@@ -85,19 +83,38 @@ conn.lock() → SELECT file_path → unlock
 conn.lock() → UPDATE thumbnail_generated_at → unlock
 ```
 
+### ビルドプロファイル
+
+`image` クレート等の依存ライブラリはdev時でも `opt-level = 2` で最適化する。未最適化だとデコード・リサイズが10倍以上遅くなる。
+
+```toml
+[profile.dev.package."*"]
+opt-level = 2
+```
+
+## サムネイルの削除
+
+再スキャン時にFSに存在しないphotosがDBから削除されると、対応するサムネイルもredbから削除される。この処理は `scan.rs` のオーケストレーション層で行う。
+
 ## エラー処理
 
-- 読み取れないファイル（破損、非対応フォーマット等）はスキップし、空のレスポンス（404）を返す
+- 読み取れないファイル（破損、非対応フォーマット等）はスキップし、404を返す
+- ファイルが存在しない場合も404を返す（DBからの削除は再スキャンに任せる）
 - redb/SQLiteの書き込みエラーは無視する（サムネイルは再生成可能なため）
 
 ## モジュール構成
 
 ```
-src-tauri/src/thumbnail.rs — ThumbnailStore + handle_request + generate_thumbnail
+src-tauri/src/thumbnail/
+  mod.rs          — pub use で公開API定義
+  store.rs        — ThumbnailStore (redb操作: get/set/delete)
+  generate.rs     — 画像処理 (デコード→クロップ→リサイズ→エンコード)
+  protocol.rs     — ThumbnailState + handle_request (プロトコルハンドラ)
 ```
 
-- `handle_request`: キャッシュ確認・singleflight・セマフォ・生成・保存の全フローを担当
-- `generate_thumbnail`: 純粋な画像処理（デコード→クロップ→リサイズ→エンコード）
+- `store.rs`: redbの読み書きに専念
+- `generate.rs`: 純粋な画像処理、DBやredbに依存しない
+- `protocol.rs`: キャッシュ確認・セマフォ・生成・保存のフロー全体を制御
 
 ## 将来の拡張
 

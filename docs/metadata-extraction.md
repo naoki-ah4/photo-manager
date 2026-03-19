@@ -22,13 +22,19 @@
    WHERE metadata_extracted_at IS NULL
       OR file_modified_at > metadata_extracted_at
    ↓
-2. EXIF読み取り (read_exif)
-   ファイルを開いてEXIFタグを解析
-   ↓
-3. DB更新 (persist)
-   抽出した値でphotosテーブルをUPDATE
-   metadata_extracted_atを現在時刻で更新
+2. 100枚ずつチャンク処理:
+   a. EXIF読み取り (read_exif) — ロックなし
+   b. トランザクションで一括UPDATE — 1回のロック
+      metadata_extracted_atを現在時刻(UNIX TIME)で更新
 ```
+
+### チャンク処理
+
+EXIF読み取りをまとめて行い、結果を集めてからトランザクション内で一括UPDATEする。
+
+- ロック回数: N件 → チャンク数回に削減
+- ディスク書き込み: トランザクション単位に集約
+- WAL肥大化防止: 1トランザクションあたり100件に抑える
 
 ## 抽出するフィールド
 
@@ -36,7 +42,7 @@
 |---------|----------|------|------|
 | `width` | `PixelXDimension` | `u32` | |
 | `height` | `PixelYDimension` | `u32` | |
-| `taken_at` | `DateTimeOriginal` | `String` | 撮影日時 |
+| `taken_at` | `DateTimeOriginal` | `String` | 撮影日時。EXIFにTZ情報がないためTEXTで保存 |
 | `camera_make` | `Make` | `String` | カメラメーカー |
 | `camera_model` | `Model` | `String` | カメラ機種 |
 | `lens_model` | `LensModel` | `String` | レンズ名 |

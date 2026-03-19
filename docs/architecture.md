@@ -13,12 +13,13 @@
 - **接続設定**: WALモード、busy_timeout=5000ms、foreign_keys=ON
 - **マイグレーション**: refinery (`src-tauri/migrations/` 配下のSQLファイル)
 - **DBファイル**: `{app_data_dir}/photo-manager.db`
+- **日時型**: INTEGER (UNIX TIME) で統一。`taken_at` のみEXIFにTZ情報がないためTEXT。
 
 #### WALモード
 
 SQLiteのデフォルトではDB書き込み中に読み取りもブロックされる。WAL (Write-Ahead Logging) モードを有効にすることで、書き込み中でも読み取りが可能になる。Rust側で重い書き込み（スキャン等）を行いながら、フロント側で一覧表示を行うために必要。
 
-ただし同時書き込みはWLモードでも不可（SQLiteの設計上の制限）。書き込みが競合した場合は `busy_timeout` で自動リトライされる。
+ただし同時書き込みはWALモードでも不可（SQLiteの設計上の制限）。書き込みが競合した場合は `busy_timeout` で自動リトライされる。
 
 #### TS / Rust 両方からのアクセス
 
@@ -51,6 +52,40 @@ watch_folders  (監視ルート)
 
 監視フォルダ削除時は CASCADE で配下の directories, photos も削除される。
 
+## モジュール構成
+
+```
+src-tauri/src/
+  lib.rs              — アプリ起動、プロトコル登録
+  db.rs               — DbState, init_db（DB基盤のみ）
+  commands.rs          — Tauriコマンド（薄いラッパー）
+  scan.rs              — scan_one + scan_all（オーケストレーション）
+  exif.rs              — EXIF抽出
+  scanner/
+    mod.rs
+    walk.rs            — FS走査
+    persist.rs         — DB upsert + 不在ファイル削除
+  thumbnail/
+    mod.rs
+    store.rs           — ThumbnailStore (redb操作)
+    generate.rs        — 画像処理 (crop/resize/encode)
+    protocol.rs        — ThumbnailState + handle_request
+```
+
+### レイヤー構造
+
+```
+commands.rs          Tauriコマンド定義（State受け取り → モジュール呼び出し）
+  ↓
+scan.rs              scannerとthumbnailを統合するオーケストレーション
+  ↓
+scanner/             FS走査 + DB永続化
+thumbnail/           画像処理 + redbストレージ + プロトコルハンドラ
+exif.rs              EXIF解析 + DB更新
+  ↓
+db.rs                DB接続・初期化の基盤
+```
+
 ## 実装フェーズ
 
 ### Phase 1: 基盤 — DB初期化 + フォルダスキャン
@@ -61,6 +96,7 @@ watch_folders  (監視ルート)
 ### Phase 2: EXIF + サムネイル
 - Rust側でEXIF解析 → メタデータ書き込み
 - サムネイル生成 → redbに保存
+- カスタムプロトコル `thumb://` でサムネイル配信
 - 仮想スクロールでグリッド表示
 
 ### Phase 3: タグ / アルバム
