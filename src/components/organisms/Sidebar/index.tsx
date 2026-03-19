@@ -2,6 +2,7 @@ import { NavLink, Stack } from "@mantine/core";
 import useSWR from "swr";
 import { useLocation } from "wouter";
 import { db } from "../../../lib/db";
+import { SWRKeys } from "../../../lib/swrKeys";
 
 const fetchWatchFolders = () =>
   db
@@ -12,7 +13,10 @@ const fetchWatchFolders = () =>
 
 const Sidebar = () => {
   const [location, setLocation] = useLocation();
-  const { data: folders = [] } = useSWR("watch_folders", fetchWatchFolders);
+  const { data: folders = [] } = useSWR(
+    SWRKeys.watchFolders,
+    fetchWatchFolders,
+  );
 
   return (
     <Stack gap="xs" p="sm">
