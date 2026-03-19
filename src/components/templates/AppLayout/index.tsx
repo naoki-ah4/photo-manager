@@ -1,13 +1,16 @@
 import { AppShell } from "@mantine/core";
+import Routes from "../../../routes";
 import Sidebar from "../../organisms/Sidebar";
 
-export default function AppLayout() {
-  return (
-    <AppShell navbar={{ width: 240, breakpoint: 0 }} padding="md">
-      <AppShell.Navbar>
-        <Sidebar />
-      </AppShell.Navbar>
-      <AppShell.Main>{/* メインコンテンツ */}</AppShell.Main>
-    </AppShell>
-  );
-}
+const AppLayout = () => (
+  <AppShell navbar={{ width: 240, breakpoint: 0 }} padding="md">
+    <AppShell.Navbar>
+      <Sidebar />
+    </AppShell.Navbar>
+    <AppShell.Main>
+      <Routes />
+    </AppShell.Main>
+  </AppShell>
+);
+
+export default AppLayout;

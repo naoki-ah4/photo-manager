@@ -1,15 +1,16 @@
 import { NavLink, Stack } from "@mantine/core";
 import { useEffect, useState } from "react";
+import { useLocation } from "wouter";
 import { getDb } from "../../../lib/db";
 
-interface WatchFolder {
+type WatchFolder = {
   id: string;
   path: string;
-}
+};
 
-export default function Sidebar() {
+const Sidebar = () => {
+  const [location, setLocation] = useLocation();
   const [folders, setFolders] = useState<WatchFolder[]>([]);
-  const [active, setActive] = useState<string | null>(null);
 
   useEffect(() => {
     (async () => {
@@ -26,18 +27,25 @@ export default function Sidebar() {
       <NavLink label="フォルダ" defaultOpened childrenOffset={0}>
         <NavLink
           label="すべて"
-          active={active === null}
-          onClick={() => setActive(null)}
+          active={location === "/"}
+          onClick={() => setLocation("/")}
         />
         {folders.map((f) => (
           <NavLink
             key={f.id}
             label={f.path.split(/[/\\]/).pop()}
-            active={active === f.id}
-            onClick={() => setActive(f.id)}
+            active={location === `/folders/${f.id}`}
+            onClick={() => setLocation(`/folders/${f.id}`)}
           />
         ))}
       </NavLink>
+      <NavLink
+        label="設定"
+        active={location === "/settings"}
+        onClick={() => setLocation("/settings")}
+      />
     </Stack>
   );
-}
+};
+
+export default Sidebar;
