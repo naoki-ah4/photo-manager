@@ -1,10 +1,10 @@
-use chrono::{DateTime, Utc};
 use image::imageops::FilterType;
 use image::ImageFormat;
 use redb::{Database, ReadableDatabase, TableDefinition};
 use rusqlite::params;
 use std::io::Cursor;
 use std::path::Path;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 use crate::db::{DbState, ThumbnailState};
 
@@ -39,6 +39,17 @@ impl ThumbnailStore {
         {
             let mut table = tx.open_table(THUMBNAILS)?;
             table.insert(key.as_str(), data)?;
+        }
+        tx.commit()?;
+        Ok(())
+    }
+
+    pub fn delete(&self, photo_id: &str) -> Result<(), redb::Error> {
+        let key = format!("{}:{}", photo_id, THUMBNAIL_SIZE);
+        let tx = self.db.begin_write()?;
+        {
+            let mut table = tx.open_table(THUMBNAILS)?;
+            table.remove(key.as_str())?;
         }
         tx.commit()?;
         Ok(())
@@ -91,10 +102,13 @@ pub fn handle_request(
     let _ = thumb_state.store.set(photo_id, &data);
     {
         let conn = db_state.conn.lock().unwrap();
-        let now: DateTime<Utc> = Utc::now();
+        let now = SystemTime::now()
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
         let _ = conn.execute(
             "UPDATE photos SET thumbnail_generated_at = ?1, updated_at = ?1 WHERE id = ?2",
-            params![now.to_rfc3339(), photo_id],
+            params![now, photo_id],
         );
     }
 

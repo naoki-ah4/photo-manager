@@ -2,7 +2,7 @@ CREATE TABLE IF NOT EXISTS watch_folders (
     id TEXT PRIMARY KEY NOT NULL,
     path TEXT NOT NULL UNIQUE,
     recursive INTEGER NOT NULL DEFAULT 1,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at INTEGER NOT NULL DEFAULT (unixepoch())
 );
 
 CREATE TABLE IF NOT EXISTS directories (
@@ -11,7 +11,7 @@ CREATE TABLE IF NOT EXISTS directories (
     parent_id TEXT REFERENCES directories(id) ON DELETE CASCADE,
     path TEXT NOT NULL UNIQUE,
     name TEXT NOT NULL,
-    created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at INTEGER NOT NULL DEFAULT (unixepoch())
 );
 
 CREATE TABLE IF NOT EXISTS photos (
@@ -20,14 +20,14 @@ CREATE TABLE IF NOT EXISTS photos (
     file_path TEXT NOT NULL UNIQUE,
     file_name TEXT NOT NULL,
     file_size INTEGER NOT NULL,
-    file_modified_at TEXT NOT NULL,
-    metadata_extracted_at TEXT,
-    thumbnail_generated_at TEXT,
+    file_modified_at INTEGER NOT NULL,
+    metadata_extracted_at INTEGER,
+    thumbnail_generated_at INTEGER,
     file_hash TEXT,
     width INTEGER,
     height INTEGER,
-    taken_at TEXT,
-    imported_at TEXT NOT NULL DEFAULT (datetime('now')),
+    taken_at INTEGER,
+    imported_at INTEGER NOT NULL DEFAULT (unixepoch()),
     camera_make TEXT,
     camera_model TEXT,
     lens_model TEXT,
@@ -39,8 +39,8 @@ CREATE TABLE IF NOT EXISTS photos (
     gps_latitude REAL,
     gps_longitude REAL,
     rating INTEGER NOT NULL DEFAULT 0,
-    created_at TEXT NOT NULL DEFAULT (datetime('now')),
-    updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+    created_at INTEGER NOT NULL DEFAULT (unixepoch()),
+    updated_at INTEGER NOT NULL DEFAULT (unixepoch())
 );
 
 CREATE INDEX IF NOT EXISTS idx_directories_watch_folder_id ON directories(watch_folder_id);

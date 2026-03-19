@@ -27,7 +27,6 @@ rusqlite = { version = "0.31", features = ["bundled"] }
 refinery = { version = "0.8", features = ["rusqlite"] }
 walkdir = "2.5.0"
 uuid = { version = "1.22.0", features = ["v4"] }
-chrono = "0.4.44"
 kamadak-exif = "0.6.1"
 image = "0.25.10"
 redb = "3.1.1"

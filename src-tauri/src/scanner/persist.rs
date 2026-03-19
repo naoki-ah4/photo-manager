@@ -1,19 +1,32 @@
-use chrono::{DateTime, Utc};
 use rusqlite::{params, Connection, OptionalExtension};
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::time::{SystemTime, UNIX_EPOCH};
 use uuid::Uuid;
 
 use super::walk::ScannedEntry;
 
+/// スキャン結果
+pub struct UpsertResult {
+    /// upsertした写真の件数
+    pub upserted: usize,
+    /// FSに存在しなくなったためDBから削除した写真のID
+    pub deleted_ids: Vec<String>,
+}
+
 /// スキャン結果（directories + photos）をDBにupsertする。
-/// 処理した写真の件数を返す。
+/// FSに存在しなくなったphotosは削除し、そのIDを返す。
 pub fn upsert_scan_results(
     conn: &mut Connection,
     watch_folder_id: &str,
     watch_folder_path: &Path,
     entries: &[ScannedEntry],
-) -> Result<usize, rusqlite::Error> {
+) -> Result<UpsertResult, rusqlite::Error> {
+    let scan_started_at = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as i64;
+
     let tx = conn.transaction()?;
 
     // ディレクトリパス → ID のキャッシュ（parent_id の解決に使用）
@@ -25,7 +38,7 @@ pub fn upsert_scan_results(
          ON CONFLICT(file_path) DO UPDATE SET
              file_size = excluded.file_size,
              file_modified_at = excluded.file_modified_at,
-             updated_at = datetime('now')",
+             updated_at = unixepoch()",
     )?;
 
     let mut count = 0;
@@ -39,8 +52,11 @@ pub fn upsert_scan_results(
         )?;
 
         let photo_id = Uuid::new_v4().to_string();
-        let modified_at: DateTime<Utc> = entry.file_modified_at.into();
-        let modified_at = modified_at.to_rfc3339();
+        let modified_at = entry
+            .file_modified_at
+            .duration_since(UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
 
         stmt.execute(params![
             photo_id,
@@ -54,8 +70,42 @@ pub fn upsert_scan_results(
     }
 
     drop(stmt);
+
+    // スキャン開始時刻より前のupdated_atを持つphotosは、FSに存在しなくなったもの
+    let deleted_ids: Vec<String> = {
+        let mut stmt = tx.prepare(
+            "SELECT id FROM photos
+             WHERE directory_id IN (SELECT id FROM directories WHERE watch_folder_id = ?1)
+               AND updated_at < ?2",
+        )?;
+        let rows = stmt.query_map(params![watch_folder_id, scan_started_at], |row| {
+            row.get(0)
+        })?;
+        rows.collect::<Result<Vec<_>, _>>()?
+    };
+
+    if !deleted_ids.is_empty() {
+        tx.execute(
+            "DELETE FROM photos
+             WHERE directory_id IN (SELECT id FROM directories WHERE watch_folder_id = ?1)
+               AND updated_at < ?2",
+            params![watch_folder_id, scan_started_at],
+        )?;
+
+        // photosが0件になったdirectoriesも削除
+        tx.execute(
+            "DELETE FROM directories
+             WHERE watch_folder_id = ?1
+               AND id NOT IN (SELECT DISTINCT directory_id FROM photos)",
+            params![watch_folder_id],
+        )?;
+    }
+
     tx.commit()?;
-    Ok(count)
+    Ok(UpsertResult {
+        upserted: count,
+        deleted_ids,
+    })
 }
 
 /// 指定ディレクトリとwatch_folderルートまでの祖先ディレクトリをDBに登録する。

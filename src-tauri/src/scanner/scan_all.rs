@@ -2,11 +2,13 @@ use rusqlite::Connection;
 use std::path::PathBuf;
 use std::sync::Mutex;
 
+use crate::thumbnail::ThumbnailStore;
+
 use super::{persist, walk};
 
 /// DBに登録済みの全watch_folderを走査してphotos/directoriesをupsertする。
 /// 処理した写真の合計件数を返す。
-pub fn scan_all(conn: &Mutex<Connection>) -> Result<usize, String> {
+pub fn scan_all(conn: &Mutex<Connection>, thumb_store: &ThumbnailStore) -> Result<usize, String> {
     struct WatchFolder {
         id: String,
         path: String,
@@ -44,8 +46,15 @@ pub fn scan_all(conn: &Mutex<Connection>) -> Result<usize, String> {
 
         // DB書き込み (ロック)
         let mut conn = conn.lock().map_err(|e| e.to_string())?;
-        total += persist::upsert_scan_results(&mut conn, &folder.id, &path, &entries)
+        let result = persist::upsert_scan_results(&mut conn, &folder.id, &path, &entries)
             .map_err(|e| e.to_string())?;
+        total += result.upserted;
+        drop(conn);
+
+        // 削除されたphotosのサムネイルをredbから削除
+        for id in &result.deleted_ids {
+            let _ = thumb_store.delete(id);
+        }
     }
 
     Ok(total)

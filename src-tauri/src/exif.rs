@@ -1,10 +1,10 @@
-use chrono::{DateTime, Utc};
 use exif::{In, Reader, Tag};
 use rusqlite::{params, Connection};
 use std::fs::File;
 use std::io::BufReader;
 use std::path::Path;
 use std::sync::Mutex;
+use std::time::{SystemTime, UNIX_EPOCH};
 
 struct PhotoForExif {
     id: String,
@@ -173,7 +173,10 @@ fn parse_gps_coord(
 }
 
 fn persist(conn: &Connection, photo_id: &str, exif: &ExtractedExif) -> Result<(), rusqlite::Error> {
-    let now: DateTime<Utc> = Utc::now();
+    let now = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs() as i64;
     conn.execute(
         "UPDATE photos SET
             width = ?1,
@@ -206,7 +209,7 @@ fn persist(conn: &Connection, photo_id: &str, exif: &ExtractedExif) -> Result<()
             exif.focal_length_35mm,
             exif.gps_latitude,
             exif.gps_longitude,
-            now.to_rfc3339(),
+            now,
             photo_id,
         ],
     )?;
