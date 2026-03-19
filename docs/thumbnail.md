@@ -32,7 +32,7 @@ thumb://localhost/{photo_id}?generate=false    — キャッシュがなけれ�
 5. SELECT file_path (SQLite、短時間ロック)
    ↓
 6. 画像処理 (ロックなし)
-   デコード → RGBA変換 → 正方形クロップ+リサイズ(1パス) → WebPエンコード
+   デコード → 正方形クロップ+リサイズ(1パス) → WebPエンコード
    ↓
 7. redb書き込み + SQLite UPDATE (短時間ロック)
    ↓
