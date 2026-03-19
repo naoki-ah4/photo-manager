@@ -3,5 +3,5 @@ export default {
     [
       "bunx biome check --write --no-errors-on-unmatched --files-ignore-unknown=true --colors=off",
     ],
-  "*.rs": ["rustfmt"],
+  "*.rs": ["rustfmt --config skip_children=true"],
 };
