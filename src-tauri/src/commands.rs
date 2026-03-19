@@ -15,10 +15,7 @@ pub fn scan_one(
 }
 
 #[tauri::command]
-pub fn scan_all(
-    db: State<'_, DbState>,
-    thumb: State<'_, ThumbnailState>,
-) -> Result<usize, String> {
+pub fn scan_all(db: State<'_, DbState>, thumb: State<'_, ThumbnailState>) -> Result<usize, String> {
     scan::scan_all(&db.conn, &thumb.store)
 }
 

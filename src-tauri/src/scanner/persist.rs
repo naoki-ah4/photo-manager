@@ -78,9 +78,7 @@ pub fn upsert_scan_results(
              WHERE directory_id IN (SELECT id FROM directories WHERE watch_folder_id = ?1)
                AND updated_at < ?2",
         )?;
-        let rows = stmt.query_map(params![watch_folder_id, scan_started_at], |row| {
-            row.get(0)
-        })?;
+        let rows = stmt.query_map(params![watch_folder_id, scan_started_at], |row| row.get(0))?;
         rows.collect::<Result<Vec<_>, _>>()?
     };
 

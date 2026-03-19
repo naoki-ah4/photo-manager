@@ -18,7 +18,6 @@ pub fn run() {
                 .path()
                 .app_data_dir()
                 .expect("failed to resolve app data dir");
-
             let conn = db::init_db(&app_data_dir).expect("failed to initialize database");
             let store = thumbnail::ThumbnailStore::open(&app_data_dir)
                 .expect("failed to initialize thumbnail store");

@@ -46,10 +46,7 @@ pub fn scan_one(
 }
 
 /// DBに登録済みの全watch_folderを走査する。
-pub fn scan_all(
-    conn: &Mutex<Connection>,
-    thumb_store: &ThumbnailStore,
-) -> Result<usize, String> {
+pub fn scan_all(conn: &Mutex<Connection>, thumb_store: &ThumbnailStore) -> Result<usize, String> {
     let folder_ids = {
         let conn = conn.lock().map_err(|e| e.to_string())?;
         let mut stmt = conn
