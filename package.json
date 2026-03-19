@@ -21,6 +21,7 @@
     "kysely-dialect-tauri": "^1.2.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
+    "swr": "^2.4.1",
     "uuid": "^13.0.0",
     "wouter": "^3.9.0"
   },

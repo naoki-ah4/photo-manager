@@ -1,26 +1,18 @@
 import { NavLink, Stack } from "@mantine/core";
-import { useEffect, useState } from "react";
+import useSWR from "swr";
 import { useLocation } from "wouter";
 import { db } from "../../../lib/db";
-import type { WatchFolders } from "../../../lib/schema";
 
-type WatchFolderRow = Pick<WatchFolders, "id" | "path">;
+const fetchWatchFolders = () =>
+  db
+    .selectFrom("watch_folders")
+    .select(["id", "path"])
+    .orderBy("path")
+    .execute();
 
 const Sidebar = () => {
   const [location, setLocation] = useLocation();
-  const [folders, setFolders] = useState<WatchFolderRow[]>([]);
-
-  useEffect(() => {
-    (async () => {
-      const rows = await db
-        .selectFrom("watch_folders")
-        .select(["id", "path"])
-        .orderBy("path")
-        .execute();
-      console.log("Fetched watch folders:", rows);
-      setFolders(rows);
-    })();
-  }, []);
+  const { data: folders = [] } = useSWR("watch_folders", fetchWatchFolders);
 
   return (
     <Stack gap="xs" p="sm">
