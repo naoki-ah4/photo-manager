@@ -1,23 +1,23 @@
 import { NavLink, Stack } from "@mantine/core";
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
-import { getDb } from "../../../lib/db";
+import { db } from "../../../lib/db";
+import type { WatchFolders } from "../../../lib/schema";
 
-type WatchFolder = {
-  id: string;
-  path: string;
-};
+type WatchFolderRow = Pick<WatchFolders, "id" | "path">;
 
 const Sidebar = () => {
   const [location, setLocation] = useLocation();
-  const [folders, setFolders] = useState<WatchFolder[]>([]);
+  const [folders, setFolders] = useState<WatchFolderRow[]>([]);
 
   useEffect(() => {
     (async () => {
-      const db = await getDb();
-      const rows = await db.select<WatchFolder[]>(
-        "SELECT id, path FROM watch_folders ORDER BY path",
-      );
+      const rows = await db
+        .selectFrom("watch_folders")
+        .select(["id", "path"])
+        .orderBy("path")
+        .execute();
+      console.log("Fetched watch folders:", rows);
       setFolders(rows);
     })();
   }, []);
