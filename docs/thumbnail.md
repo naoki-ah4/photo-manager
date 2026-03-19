@@ -32,7 +32,7 @@ thumb://localhost/{photo_id}?generate=false    — キャッシュがなけれ�
 5. SELECT file_path (SQLite、短時間ロック)
    ↓
 6. 画像処理 (ロックなし)
-   デコード → 正方形クロップ → 256pxリサイズ → WebPエンコード
+   デコード → RGBA変換 → 正方形クロップ+リサイズ(1パス) → WebPエンコード
    ↓
 7. redb書き込み + SQLite UPDATE (短時間ロック)
    ↓
@@ -45,7 +45,7 @@ thumb://localhost/{photo_id}?generate=false    — キャッシュがなけれ�
 |------|-----|
 | サイズ | 256 x 256 px |
 | クロップ | 中央正方形クロップ |
-| リサイズアルゴリズム | Triangle（バイリニア） |
+| リサイズアルゴリズム | fast_image_resize (SIMD最適化、Lanczos3相当) |
 | 出力フォーマット | WebP |
 
 ## ストレージ
@@ -119,5 +119,5 @@ src-tauri/src/thumbnail/
 ## 将来の拡張
 
 - **解像度の設定化**: 現在は定数 (`THUMBNAIL_SIZE = 256`) だが、config化して可変にできる
-- **リサイズ高速化**: `fast_image_resize` クレートでSIMDリサイズに差し替え可能
+- **リサイズアルゴリズム変更**: `fast_image_resize` の `ResizeOptions` でアルゴリズムを変更可能
 - **RAW対応**: RAWファイルのサムネイル生成には別途デコーダが必要
