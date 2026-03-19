@@ -17,6 +17,9 @@ export const addWatchFolder = async (
 export const fetchWatchFolders = async () =>
   db.selectFrom("watch_folders").selectAll().orderBy("created_at").execute();
 
+export const removeWatchFolder = async (id: string) =>
+  db.deleteFrom("watch_folders").where("id", "=", id).execute();
+
 export const scanOne = (watchFolderId: string): Promise<number> =>
   invoke<number>("scan_one", { watchFolderId });
 
