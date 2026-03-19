@@ -42,12 +42,12 @@ export async function fetchWatchFolders(): Promise<WatchFolder[]> {
   );
 }
 
-export async function scanFolder(watchFolderId: string, path: string, recursive = true): Promise<number> {
-  return invoke<number>("scan_folder", { watchFolderId, path, recursive });
+export async function scanOne(watchFolderId: string): Promise<number> {
+  return invoke<number>("scan_one", { watchFolderId });
 }
 
-export async function scanAllWatchFolders(): Promise<number> {
-  return invoke<number>("scan_all_watch_folders");
+export async function scanAll(): Promise<number> {
+  return invoke<number>("scan_all");
 }
 
 export async function extractExif(): Promise<number> {

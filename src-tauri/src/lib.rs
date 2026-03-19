@@ -1,6 +1,7 @@
 mod commands;
 mod db;
 mod exif;
+mod scan;
 mod scanner;
 mod thumbnail;
 
@@ -27,7 +28,7 @@ pub fn run() {
             app.manage(db::DbState {
                 conn: std::sync::Mutex::new(conn),
             });
-            app.manage(db::ThumbnailState {
+            app.manage(thumbnail::ThumbnailState {
                 store,
                 semaphore: Semaphore::new(max_concurrent),
             });
@@ -49,12 +50,12 @@ pub fn run() {
                 let query = uri.query().unwrap_or("");
                 let allow_generate = !query.contains("generate=false");
 
-                let thumb_state = app.state::<db::ThumbnailState>();
+                let thumb_state = app.state::<thumbnail::ThumbnailState>();
                 let db_state = app.state::<db::DbState>();
 
                 let response = match thumbnail::handle_request(
                     &thumb_state,
-                    &db_state,
+                    &db_state.conn,
                     photo_id,
                     allow_generate,
                 ) {
@@ -69,8 +70,8 @@ pub fn run() {
         })
         .plugin(tauri_plugin_sql::Builder::default().build())
         .invoke_handler(tauri::generate_handler![
-            commands::scan_folder,
-            commands::scan_all_watch_folders,
+            commands::scan_one,
+            commands::scan_all,
             commands::extract_exif,
         ])
         .run(tauri::generate_context!())

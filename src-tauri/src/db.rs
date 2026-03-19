@@ -2,19 +2,11 @@ use refinery::embed_migrations;
 use rusqlite::Connection;
 use std::path::Path;
 use std::sync::Mutex;
-use std_semaphore::Semaphore;
-
-use crate::thumbnail::ThumbnailStore;
 
 embed_migrations!("migrations");
 
 pub struct DbState {
     pub conn: Mutex<Connection>,
-}
-
-pub struct ThumbnailState {
-    pub store: ThumbnailStore,
-    pub semaphore: Semaphore,
 }
 
 pub fn init_db(app_data_dir: &Path) -> Result<Connection, Box<dyn std::error::Error>> {

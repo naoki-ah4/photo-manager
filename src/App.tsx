@@ -4,8 +4,8 @@ import {
   extractExif,
   fetchPhotos,
   fetchWatchFolders,
-  scanAllWatchFolders,
-  scanFolder,
+  scanAll,
+  scanOne,
   type Photo,
   type WatchFolder,
 } from "./lib/commands";
@@ -26,7 +26,7 @@ function App() {
     try {
       const id = await addWatchFolder(folderPath.trim());
       addLog(`watch_folder登録: ${folderPath}`);
-      const count = await scanFolder(id, folderPath.trim());
+      const count = await scanOne(id);
       addLog(`スキャン完了: ${count}件`);
       setFolderPath("");
       await handleLoadFolders();
@@ -37,7 +37,7 @@ function App() {
 
   async function handleScanAll() {
     try {
-      const count = await scanAllWatchFolders();
+      const count = await scanAll();
       addLog(`全フォルダスキャン完了: ${count}件`);
     } catch (e) {
       addLog(`エラー: ${e}`);
