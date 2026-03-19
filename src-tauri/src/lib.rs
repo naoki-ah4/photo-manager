@@ -4,7 +4,6 @@ mod exif;
 mod scanner;
 mod thumbnail;
 
-use singleflight::Group;
 use std_semaphore::Semaphore;
 use tauri::http::Response;
 use tauri::Manager;
@@ -23,15 +22,13 @@ pub fn run() {
             let store = thumbnail::ThumbnailStore::open(&app_data_dir)
                 .expect("failed to initialize thumbnail store");
 
-            let max_concurrent =
-                (num_cpus::get_physical().saturating_sub(1)).max(1) as isize;
+            let max_concurrent = (num_cpus::get_physical().saturating_sub(1)).max(1) as isize;
 
             app.manage(db::DbState {
                 conn: std::sync::Mutex::new(conn),
             });
             app.manage(db::ThumbnailState {
                 store,
-                flight: Group::new(),
                 semaphore: Semaphore::new(max_concurrent),
             });
 
@@ -44,25 +41,31 @@ pub fn run() {
 
             Ok(())
         })
-        .register_uri_scheme_protocol("thumb", |ctx, req| {
-            let uri = req.uri();
-            let photo_id = uri.path().trim_start_matches('/');
-            let query = uri.query().unwrap_or("");
-            let allow_generate = !query.contains("generate=false");
+        .register_asynchronous_uri_scheme_protocol("thumb", |ctx, req, responder| {
+            let app = ctx.app_handle().clone();
+            std::thread::spawn(move || {
+                let uri = req.uri();
+                let photo_id = uri.path().trim_start_matches('/');
+                let query = uri.query().unwrap_or("");
+                let allow_generate = !query.contains("generate=false");
 
-            let thumb_state = ctx.app_handle().state::<db::ThumbnailState>();
-            let db_state = ctx.app_handle().state::<db::DbState>();
+                let thumb_state = app.state::<db::ThumbnailState>();
+                let db_state = app.state::<db::DbState>();
 
-            match thumbnail::handle_request(&thumb_state, &db_state, photo_id, allow_generate) {
-                Some(data) => Response::builder()
-                    .header("Content-Type", "image/webp")
-                    .body(data)
-                    .unwrap(),
-                None => Response::builder()
-                    .status(404)
-                    .body(Vec::new())
-                    .unwrap(),
-            }
+                let response = match thumbnail::handle_request(
+                    &thumb_state,
+                    &db_state,
+                    photo_id,
+                    allow_generate,
+                ) {
+                    Some(data) => Response::builder()
+                        .header("Content-Type", "image/webp")
+                        .body(data)
+                        .unwrap(),
+                    None => Response::builder().status(404).body(Vec::new()).unwrap(),
+                };
+                responder.respond(response);
+            });
         })
         .plugin(tauri_plugin_sql::Builder::default().build())
         .invoke_handler(tauri::generate_handler![

@@ -9,6 +9,7 @@ import {
   type Photo,
   type WatchFolder,
 } from "./lib/commands";
+import { Thumbnail } from "./components/Thumbnail";
 
 function App() {
   const [folderPath, setFolderPath] = useState("");
@@ -131,6 +132,7 @@ function App() {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 12 }}>
             <thead>
               <tr style={{ textAlign: "left", borderBottom: "1px solid #ccc" }}>
+                <th>サムネイル</th>
                 <th>ファイル名</th>
                 <th>撮影日時</th>
                 <th>カメラ</th>
@@ -144,6 +146,9 @@ function App() {
             <tbody>
               {photos.map((p) => (
                 <tr key={p.id} style={{ borderBottom: "1px solid #eee" }}>
+                  <td>
+                    <Thumbnail photoId={p.id} />
+                  </td>
                   <td>{p.file_name}</td>
                   <td>{p.taken_at ?? "—"}</td>
                   <td>{[p.camera_make, p.camera_model].filter(Boolean).join(" ") || "—"}</td>

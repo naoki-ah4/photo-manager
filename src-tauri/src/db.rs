@@ -1,6 +1,5 @@
 use refinery::embed_migrations;
 use rusqlite::Connection;
-use singleflight::Group;
 use std::path::Path;
 use std::sync::Mutex;
 use std_semaphore::Semaphore;
@@ -15,7 +14,6 @@ pub struct DbState {
 
 pub struct ThumbnailState {
     pub store: ThumbnailStore,
-    pub flight: Group<Vec<u8>>,
     pub semaphore: Semaphore,
 }
 

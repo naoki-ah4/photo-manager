@@ -46,7 +46,7 @@ impl ThumbnailStore {
 }
 
 /// サムネイルリクエストを処理する。
-/// キャッシュがあればそのまま返し、なければ singleflight + semaphore で並行制御しつつ生成する。
+/// キャッシュがあればそのまま返し、なければ semaphore で並行制御しつつ生成する。
 /// allow_generate=false の場合、キャッシュミス時は None を返す。
 pub fn handle_request(
     thumb_state: &ThumbnailState,
@@ -63,56 +63,42 @@ pub fn handle_request(
         return None;
     }
 
-    // singleflight で同じ photo_id の重複生成を防止
-    let data = thumb_state.flight.work(photo_id, || {
-        // セマフォで同時生成数を制限
-        let guard = thumb_state.semaphore.access();
+    // セマフォで同時生成数を制限
+    let _guard = thumb_state.semaphore.access();
 
-        // SELECT file_path (短時間ロック)
-        let file_path: Option<String> = {
-            let conn = db_state.conn.lock().unwrap();
-            conn.query_row(
-                "SELECT file_path FROM photos WHERE id = ?1",
-                params![photo_id],
-                |row| row.get(0),
-            )
-            .ok()
-        };
-
-        let Some(file_path) = file_path else {
-            drop(guard);
-            return Vec::new();
-        };
-
-        // 画像処理 (ロックなし)
-        let data = match generate_thumbnail(Path::new(&file_path)) {
-            Ok(d) => d,
-            Err(_) => {
-                drop(guard);
-                return Vec::new();
-            }
-        };
-
-        // redb 書き込み + SQLite UPDATE (短時間ロック)
-        let _ = thumb_state.store.set(photo_id, &data);
-        {
-            let conn = db_state.conn.lock().unwrap();
-            let now: DateTime<Utc> = Utc::now();
-            let _ = conn.execute(
-                "UPDATE photos SET thumbnail_generated_at = ?1, updated_at = ?1 WHERE id = ?2",
-                params![now.to_rfc3339(), photo_id],
-            );
-        }
-
-        drop(guard);
-        data
-    });
-
-    if data.is_empty() {
-        None
-    } else {
-        Some(data)
+    // redb再チェック（セマフォ待ち中に別スレッドが生成済みの可能性）
+    if let Ok(Some(data)) = thumb_state.store.get(photo_id) {
+        return Some(data);
     }
+
+    // SELECT file_path (短時間ロック)
+    let file_path: Option<String> = {
+        let conn = db_state.conn.lock().unwrap();
+        conn.query_row(
+            "SELECT file_path FROM photos WHERE id = ?1",
+            params![photo_id],
+            |row| row.get(0),
+        )
+        .ok()
+    };
+
+    let file_path = file_path?;
+
+    // 画像処理 (ロックなし)
+    let data = generate_thumbnail(Path::new(&file_path)).ok()?;
+
+    // redb 書き込み + SQLite UPDATE (短時間ロック)
+    let _ = thumb_state.store.set(photo_id, &data);
+    {
+        let conn = db_state.conn.lock().unwrap();
+        let now: DateTime<Utc> = Utc::now();
+        let _ = conn.execute(
+            "UPDATE photos SET thumbnail_generated_at = ?1, updated_at = ?1 WHERE id = ?2",
+            params![now.to_rfc3339(), photo_id],
+        );
+    }
+
+    Some(data)
 }
 
 /// ファイルパスからサムネイルを生成して返す。DB操作は行わない。
@@ -126,7 +112,7 @@ fn generate_thumbnail(path: &Path) -> Result<Vec<u8>, Box<dyn std::error::Error>
     let y = (h - size) / 2;
     let cropped = img.crop_imm(x, y, size, size);
 
-    let thumbnail = cropped.resize_exact(THUMBNAIL_SIZE, THUMBNAIL_SIZE, FilterType::Lanczos3);
+    let thumbnail = cropped.resize_exact(THUMBNAIL_SIZE, THUMBNAIL_SIZE, FilterType::Triangle);
 
     let mut buf = Cursor::new(Vec::new());
     thumbnail.write_to(&mut buf, ImageFormat::WebP)?;

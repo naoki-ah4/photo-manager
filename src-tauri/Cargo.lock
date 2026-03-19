@@ -3317,7 +3317,6 @@ dependencies = [
  "rusqlite",
  "serde",
  "serde_json",
- "singleflight",
  "std-semaphore",
  "tauri",
  "tauri-build",
@@ -4396,17 +4395,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "95890f873bec569a0362c235787f3aca6e1e887302ba4840839bcc6459c42da6"
 dependencies = [
  "quote",
-]
-
-[[package]]
-name = "singleflight"
-version = "0.3.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bc9635ac2e67c481f9860cea5d72587955440c966818f23ab58920a35a6fe24d"
-dependencies = [
- "crossbeam-utils",
- "hashbrown 0.14.5",
- "parking_lot",
 ]
 
 [[package]]
