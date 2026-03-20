@@ -9,21 +9,36 @@ import {
 } from "@mantine/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import useSWR, { mutate } from "swr";
-import {
-  addWatchFolder,
-  extractExif,
-  removeWatchFolder,
-  scanAll,
-} from "../../../lib/commands";
+import { v4 as uuidv4 } from "uuid";
+import { extractExif, scanAll } from "../../../lib/commands";
 import { db } from "../../../lib/db";
 import { SWRKeys } from "../../../lib/swrKeys";
 
 const fetchWatchFolders = () =>
   db.selectFrom("watch_folders").selectAll().orderBy("path").execute();
 
+const addWatchFolder = async (path: string, recursive = true) => {
+  const id = uuidv4();
+  await db
+    .insertInto("watch_folders")
+    .values({ id, path, recursive: recursive ? 1 : 0 })
+    .execute();
+  return id;
+};
+
+const removeWatchFolder = async (id: string) =>
+  db.deleteFrom("watch_folders").where("id", "=", id).execute();
+
+const invalidateWatchFolders = () =>
+  mutate(
+    (key: unknown) => Array.isArray(key) && key[0] === "watch_folders",
+    undefined,
+    { revalidate: true },
+  );
+
 const Settings = () => {
   const { data: folders = [] } = useSWR(
-    SWRKeys.watchFolders,
+    SWRKeys.watchFolders("settings"),
     fetchWatchFolders,
   );
 
@@ -31,12 +46,12 @@ const Settings = () => {
     const selected = await open({ directory: true, multiple: false });
     if (!selected) return;
     await addWatchFolder(selected);
-    await mutate(SWRKeys.watchFolders);
+    await invalidateWatchFolders();
   };
 
   const handleRemoveFolder = async (id: string) => {
     await removeWatchFolder(id);
-    await mutate(SWRKeys.watchFolders);
+    await invalidateWatchFolders();
   };
 
   const handleScanAll = async () => {

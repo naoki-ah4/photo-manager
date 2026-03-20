@@ -14,7 +14,7 @@ const fetchWatchFolders = () =>
 const Sidebar = () => {
   const [location, setLocation] = useLocation();
   const { data: folders = [] } = useSWR(
-    SWRKeys.watchFolders,
+    SWRKeys.watchFolders("sidebar"),
     fetchWatchFolders,
   );
 
