@@ -3,7 +3,7 @@ CREATE TABLE IF NOT EXISTS watch_folders (
     path TEXT NOT NULL UNIQUE,
     recursive INTEGER NOT NULL DEFAULT 1,
     created_at INTEGER NOT NULL DEFAULT (unixepoch())
-);
+) STRICT;
 
 CREATE TABLE IF NOT EXISTS directories (
     id TEXT PRIMARY KEY NOT NULL,
@@ -12,7 +12,7 @@ CREATE TABLE IF NOT EXISTS directories (
     path TEXT NOT NULL UNIQUE,
     name TEXT NOT NULL,
     created_at INTEGER NOT NULL DEFAULT (unixepoch())
-);
+) STRICT;
 
 CREATE TABLE IF NOT EXISTS photos (
     id TEXT PRIMARY KEY NOT NULL,
@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS photos (
     file_hash TEXT,
     width INTEGER,
     height INTEGER,
-    taken_at INTEGER,
+    taken_at TEXT,
     imported_at INTEGER NOT NULL DEFAULT (unixepoch()),
     camera_make TEXT,
     camera_model TEXT,
@@ -41,7 +41,7 @@ CREATE TABLE IF NOT EXISTS photos (
     rating INTEGER NOT NULL DEFAULT 0,
     created_at INTEGER NOT NULL DEFAULT (unixepoch()),
     updated_at INTEGER NOT NULL DEFAULT (unixepoch())
-);
+) STRICT;
 
 CREATE INDEX IF NOT EXISTS idx_directories_watch_folder_id ON directories(watch_folder_id);
 CREATE INDEX IF NOT EXISTS idx_directories_parent_id ON directories(parent_id);

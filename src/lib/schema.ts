@@ -42,7 +42,7 @@ export interface Photos {
   lens_model: string | null;
   metadata_extracted_at: number | null;
   rating: Generated<number>;
-  taken_at: number | null;
+  taken_at: string | null;
   thumbnail_generated_at: number | null;
   updated_at: Generated<number>;
   width: number | null;
