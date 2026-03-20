@@ -11,7 +11,7 @@ const fetchWatchFolders = () =>
     .orderBy("path")
     .execute();
 
-const Sidebar = () => {
+export const Sidebar = () => {
   const [location, setLocation] = useLocation();
   const { data: folders = [] } = useSWR(
     SWRKeys.watchFolders("sidebar"),
@@ -43,5 +43,3 @@ const Sidebar = () => {
     </Stack>
   );
 };
-
-export default Sidebar;

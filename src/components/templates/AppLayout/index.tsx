@@ -1,6 +1,6 @@
 import { AppShell } from "@mantine/core";
 import Routes from "../../../routes";
-import Sidebar from "../../organisms/Sidebar";
+import { Sidebar } from "../../organisms/Sidebar";
 
 const AppLayout = () => (
   <AppShell navbar={{ width: 240, breakpoint: 0 }} padding="md">
