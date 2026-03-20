@@ -52,7 +52,7 @@ watch_folders  (監視ルート)
 
 監視フォルダ削除時は CASCADE で配下の directories, photos も削除される。
 
-## モジュール構成
+## バックエンド モジュール構成
 
 ```
 src-tauri/src/
@@ -61,6 +61,7 @@ src-tauri/src/
   commands.rs          — Tauriコマンド（薄いラッパー）
   scan.rs              — scan_one + scan_all（オーケストレーション）
   exif.rs              — EXIF抽出
+  photo.rs             — photo:// プロトコルハンドラ（元画像配信）
   scanner/
     mod.rs
     walk.rs            — FS走査
@@ -81,10 +82,52 @@ scan.rs              scannerとthumbnailを統合するオーケストレーシ�
   ↓
 scanner/             FS走査 + DB永続化
 thumbnail/           画像処理 + redbストレージ + プロトコルハンドラ
+photo.rs             元画像のプロトコルハンドラ
 exif.rs              EXIF解析 + DB更新
   ↓
 db.rs                DB接続・初期化の基盤
 ```
+
+## カスタムURIスキーム
+
+| プロトコル | 用途 | 処理 |
+|-----------|------|------|
+| `thumb://` | サムネイル配信 | redbキャッシュ → 未生成時はオンデマンド生成 |
+| `photo://` | 元画像配信 | DBからfile_pathを引き、ファイルを読んで返す |
+
+## フロントエンド構成
+
+### コンポーネント設計
+
+Atomic Designに基づく分類。各コンポーネントはディレクトリ単位で `index.tsx` にまとめる。
+
+```
+src/components/
+  atoms/           — 最小単位の表示部品
+  molecules/       — atomsの組み合わせ
+  organisms/       — 独立した機能ブロック
+  templates/       — ページレイアウト構造
+  pages/           — ルートに対応するページ
+```
+
+### ルーティング
+
+wouter によるクライアントサイドルーティング。
+
+```
+/                                    — 全写真一覧
+/folders/:folderId                   — フォルダ内写真一覧
+/folders/:folderId/photos/:id        — 写真ビューワー (folderId="all" で全体)
+/settings                            — 設定
+```
+
+ビューワーのルートにfolderIdを含めることで、遷移元のコンテキスト（全体 or フォルダ）がURLから確定する。
+
+### データ取得
+
+- **DBクエリ**: 各コンポーネント内で `lib/db.ts` 経由のKyselyクエリを直接記述
+- **IPCコマンド**: `lib/commands.ts` に `invoke` 呼び出しを集約
+- **キャッシュ**: SWR。キーは `lib/swrKeys.ts` で一元管理
 
 ## 実装フェーズ
 
