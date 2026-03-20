@@ -6,11 +6,16 @@ import { PhotoList } from "../../organisms/PhotoList";
 import { Toolbar } from "../../organisms/Toolbar";
 
 type PhotoBrowserProps = {
+  folderId: string;
   photos: Photo[];
   isLoading: boolean;
 };
 
-export const PhotoBrowser = ({ photos, isLoading }: PhotoBrowserProps) => {
+export const PhotoBrowser = ({
+  folderId,
+  photos,
+  isLoading,
+}: PhotoBrowserProps) => {
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
 
   if (isLoading) {
@@ -33,9 +38,9 @@ export const PhotoBrowser = ({ photos, isLoading }: PhotoBrowserProps) => {
     <Stack gap={0} h="100%">
       <Toolbar viewMode={viewMode} onViewModeChange={setViewMode} />
       {viewMode === "grid" ? (
-        <PhotoGrid photos={photos} />
+        <PhotoGrid folderId={folderId} photos={photos} />
       ) : (
-        <PhotoList photos={photos} />
+        <PhotoList folderId={folderId} photos={photos} />
       )}
     </Stack>
   );

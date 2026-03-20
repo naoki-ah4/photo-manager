@@ -12,7 +12,7 @@ const Library = () => {
     fetchPhotos,
   );
 
-  return <PhotoBrowser photos={photos} isLoading={isLoading} />;
+  return <PhotoBrowser folderId="all" photos={photos} isLoading={isLoading} />;
 };
 
 export default Library;

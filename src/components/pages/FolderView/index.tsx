@@ -20,13 +20,17 @@ const fetchPhotosByWatchFolder = (watchFolderId: string) =>
     .execute();
 
 const FolderView = () => {
-  const { id } = useParams<{ id: string }>();
+  const { folderId } = useParams<{ folderId: string }>();
   const { data: photos = [], isLoading } = useSWR(
-    id ? SWRKeys.photos(id) : null,
-    () => fetchPhotosByWatchFolder(id!),
+    folderId ? SWRKeys.photos(folderId) : null,
+    () => fetchPhotosByWatchFolder(folderId),
   );
 
-  return <PhotoBrowser photos={photos} isLoading={isLoading} />;
+  if (!folderId) return null;
+
+  return (
+    <PhotoBrowser folderId={folderId} photos={photos} isLoading={isLoading} />
+  );
 };
 
 export default FolderView;

@@ -1,0 +1,9 @@
+.header {
+  border-bottom: 1px solid var(--mantine-color-dark-4);
+  flex-shrink: 0;
+}
+
+.viewer {
+  flex: 1;
+  min-height: 0;
+}

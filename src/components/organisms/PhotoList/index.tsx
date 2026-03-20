@@ -3,10 +3,11 @@ import type { Photo } from "../../../lib/types";
 import { PhotoListRow } from "../../molecules/PhotoListRow";
 
 type PhotoListProps = {
+  folderId: string;
   photos: Photo[];
 };
 
-export const PhotoList = ({ photos }: PhotoListProps) => (
+export const PhotoList = ({ folderId, photos }: PhotoListProps) => (
   <Table highlightOnHover>
     <Table.Thead>
       <Table.Tr>
@@ -19,7 +20,7 @@ export const PhotoList = ({ photos }: PhotoListProps) => (
     </Table.Thead>
     <Table.Tbody>
       {photos.map((photo) => (
-        <PhotoListRow key={photo.id} photo={photo} />
+        <PhotoListRow key={photo.id} folderId={folderId} photo={photo} />
       ))}
     </Table.Tbody>
   </Table>

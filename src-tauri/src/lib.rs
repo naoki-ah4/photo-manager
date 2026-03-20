@@ -1,6 +1,7 @@
 mod commands;
 mod db;
 mod exif;
+mod photo;
 mod scan;
 mod scanner;
 mod thumbnail;
@@ -62,6 +63,14 @@ pub fn run() {
             None => Response::builder().status(404).body(Vec::new()).unwrap(),
           };
         responder.respond(response);
+      });
+    })
+    .register_asynchronous_uri_scheme_protocol("photo", |ctx, req, responder| {
+      let app = ctx.app_handle().clone();
+      std::thread::spawn(move || {
+        let photo_id = req.uri().path().trim_start_matches('/');
+        let db_state = app.state::<db::DbState>();
+        responder.respond(photo::handle_request(&db_state.conn, photo_id));
       });
     })
     .plugin(tauri_plugin_sql::Builder::default().build())
