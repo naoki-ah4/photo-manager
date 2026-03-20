@@ -1,18 +1,18 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
+import styles from "./index.module.css";
 
-interface ThumbnailProps {
+type ThumbnailProps = {
   photoId: string;
-  size?: number;
-}
+  size?: number | string;
+};
 
-export function Thumbnail({ photoId, size = 64 }: ThumbnailProps) {
-  return (
-    <img
-      src={convertFileSrc(photoId, "thumb")}
-      alt=""
-      width={size}
-      height={size}
-      style={{ objectFit: "cover", background: "#222" }}
-    />
-  );
-}
+export const Thumbnail = ({ photoId, size = 64 }: ThumbnailProps) => (
+  <img
+    src={convertFileSrc(photoId, "thumb")}
+    alt=""
+    width={size}
+    height={size}
+    loading="lazy"
+    className={styles.thumbnail}
+  />
+);

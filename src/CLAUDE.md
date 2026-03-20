@@ -19,6 +19,11 @@
 - Tauri コマンドの呼び出しと関連する型定義は `lib/commands.ts` に集約する
 - DB への直接アクセスは `lib/db.ts` 経由で行う
 
+## スタイリング
+
+- インラインスタイル (`style` 属性) は使用しないこと
+- **CSS Modules** (`index.module.css`) を使用すること
+
 ## コーディングルール
 
 ### TypeScript (主に型に関するルール)

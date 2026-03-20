@@ -1,8 +1,8 @@
 import { Route, Switch } from "wouter";
+import FolderView from "./components/pages/FolderView";
+import Library from "./components/pages/Library";
 import Settings from "./components/pages/Settings";
 
-const Library = () => <div>ライブラリ（すべて）</div>;
-const FolderView = () => <div>フォルダ</div>;
 const PhotoViewer = () => <div>ビューワー</div>;
 
 const Routes = () => (

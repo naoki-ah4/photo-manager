@@ -29,23 +29,19 @@ export const extractExif = (): Promise<number> =>
   invoke<number>("extract_exif");
 
 export const fetchPhotos = async () =>
+  db.selectFrom("photos").selectAll().orderBy("taken_at", "desc").execute();
+
+export const fetchPhotosByWatchFolder = async (watchFolderId: string) =>
   db
     .selectFrom("photos")
-    .select([
-      "id",
-      "file_name",
-      "file_path",
-      "file_size",
-      "taken_at",
-      "camera_make",
-      "camera_model",
-      "iso",
-      "f_number",
-      "exposure_time",
-      "focal_length",
-      "focal_length_35mm",
-      "metadata_extracted_at",
-    ])
+    .selectAll()
+    .where(
+      "directory_id",
+      "in",
+      db
+        .selectFrom("directories")
+        .select("id")
+        .where("watch_folder_id", "=", watchFolderId),
+    )
     .orderBy("taken_at", "desc")
-    .limit(500)
     .execute();

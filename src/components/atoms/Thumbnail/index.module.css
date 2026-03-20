@@ -1,0 +1,5 @@
+.thumbnail {
+  object-fit: cover;
+  background: #222;
+  display: block;
+}
