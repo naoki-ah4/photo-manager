@@ -30,7 +30,18 @@ const PhotoViewer = () => {
         </Text>
       </Group>
       <div className={styles.viewer}>
-        <ImageViewer src={src} />
+        <ImageViewer
+          src={src}
+          alt={photo.file_name}
+          size={
+            photo.width && photo.height
+              ? {
+                  width: photo.width,
+                  height: photo.height,
+                }
+              : undefined
+          }
+        />
       </div>
     </Stack>
   );

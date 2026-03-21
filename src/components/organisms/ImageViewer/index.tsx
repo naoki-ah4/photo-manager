@@ -1,49 +1,36 @@
-import Panzoom from "@panzoom/panzoom";
-import { useCallback, useEffect, useRef } from "react";
+import { TransformComponent, TransformWrapper } from "react-zoom-pan-pinch";
 import styles from "./index.module.css";
 
 type ImageViewerProps = {
   src: string;
+  alt: string;
+  size?: {
+    width: number;
+    height: number;
+  };
   onPrev?: () => void;
   onNext?: () => void;
 };
 
-export const ImageViewer = ({ src }: ImageViewerProps) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const panzoomRef = useRef<ReturnType<typeof Panzoom> | null>(null);
-
-  // アンマウント時にpanzoomを破棄
-  useEffect(() => {
-    return () => {
-      panzoomRef.current?.destroy();
-      panzoomRef.current = null;
-    };
-  }, []);
-
-  const handleLoad = useCallback(
-    (e: React.SyntheticEvent<HTMLImageElement>) => {
-      const img = e.currentTarget;
-      const container = containerRef.current;
-      if (!container) return;
-
-      // 前のインスタンスがあれば破棄
-      panzoomRef.current?.destroy();
-
-      const instance = Panzoom(img, {
-        maxScale: 20,
-        contain: "outside",
-        cursor: "grab",
-      });
-      panzoomRef.current = instance;
-
-      container.addEventListener("wheel", instance.zoomWithWheel);
-    },
-    [],
-  );
-
+export const ImageViewer = ({ src, size, alt }: ImageViewerProps) => {
   return (
-    <div ref={containerRef} className={styles.container}>
-      <img src={src} alt="" className={styles.image} onLoad={handleLoad} />
+    <div
+      className={styles.container}
+      style={{ aspectRatio: `${size?.width} / ${size?.height}` }}
+    >
+      <TransformWrapper
+        maxScale={Math.max(size?.width ?? 100, size?.height ?? 100)}
+      >
+        <TransformComponent>
+          <img
+            src={src}
+            className={styles.image}
+            alt={alt}
+            width={size?.width}
+            height={size?.height}
+          />
+        </TransformComponent>
+      </TransformWrapper>
     </div>
   );
 };
