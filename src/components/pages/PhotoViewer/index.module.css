@@ -1,8 +1,0 @@
-.header {
-  flex-shrink: 0;
-}
-
-.viewer {
-  flex: 1;
-  min-height: 0;
-}

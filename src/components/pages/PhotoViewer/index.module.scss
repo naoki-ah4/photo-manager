@@ -1,0 +1,37 @@
+.header {
+  flex-shrink: 0;
+}
+
+.viewer {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+.navButton {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  font-size: 2rem;
+  color: white;
+  text-decoration: none;
+  opacity: 0;
+  transition: opacity 0.15s;
+
+  &:hover {
+    opacity: 1;
+    background: rgba(0, 0, 0, 0.3);
+  }
+
+  &.navPrev {
+    left: 0;
+  }
+
+  &.navNext {
+    right: 0;
+  }
+}

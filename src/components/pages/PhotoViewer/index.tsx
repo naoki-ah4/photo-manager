@@ -10,7 +10,7 @@ import {
 } from "../../../lib/queries/photos";
 import { SWRKeys } from "../../../lib/swrKeys";
 import { ImageViewer } from "../../organisms/ImageViewer";
-import styles from "./index.module.css";
+import styles from "./index.module.scss";
 
 const fetchPhoto = (id: string) =>
   db.selectFrom("photos").selectAll().where("id", "=", id).executeTakeFirst();
@@ -60,27 +60,9 @@ const PhotoViewer = () => {
   return (
     <Stack gap={0} h="calc(100vh - 32px)">
       <Group className={styles.header} px="sm" py={4}>
-        <Group gap="xs">
-          <Link to={isAll ? "/" : `/folders/${folderId}`}>
-            <ActionIcon variant="subtle">←</ActionIcon>
-          </Link>
-          <ActionIcon
-            variant="subtle"
-            disabled={!prevPhoto}
-            component={prevPhoto ? Link : undefined}
-            {...(prevPhoto ? { to: toPhotoPath(prevPhoto.id) } : {})}
-          >
-            ‹
-          </ActionIcon>
-          <ActionIcon
-            variant="subtle"
-            disabled={!nextPhoto}
-            component={nextPhoto ? Link : undefined}
-            {...(nextPhoto ? { to: toPhotoPath(nextPhoto.id) } : {})}
-          >
-            ›
-          </ActionIcon>
-        </Group>
+        <Link to={isAll ? "/" : `/folders/${folderId}`}>
+          <ActionIcon variant="subtle">←</ActionIcon>
+        </Link>
         <Text size="sm" truncate>
           {photo.file_name}
         </Text>
@@ -91,6 +73,14 @@ const PhotoViewer = () => {
         )}
       </Group>
       <div className={styles.viewer}>
+        {prevPhoto && (
+          <Link
+            to={toPhotoPath(prevPhoto.id)}
+            className={`${styles.navButton} ${styles.navPrev}`}
+          >
+            ‹
+          </Link>
+        )}
         <ImageViewer
           src={src}
           alt={photo.file_name}
@@ -103,6 +93,14 @@ const PhotoViewer = () => {
               : undefined
           }
         />
+        {nextPhoto && (
+          <Link
+            to={toPhotoPath(nextPhoto.id)}
+            className={`${styles.navButton} ${styles.navNext}`}
+          >
+            ›
+          </Link>
+        )}
       </div>
     </Stack>
   );
