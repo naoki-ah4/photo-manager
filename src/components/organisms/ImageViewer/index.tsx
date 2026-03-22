@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef } from "react";
 import {
   type ReactZoomPanPinchRef,
   TransformComponent,
@@ -13,8 +13,6 @@ type ImageViewerProps = {
     width: number;
     height: number;
   };
-  onPrev?: () => void;
-  onNext?: () => void;
 };
 
 const DEFAULT_WHEEL_STEP = 1;

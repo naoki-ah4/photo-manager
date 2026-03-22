@@ -1,10 +1,7 @@
 import useSWR from "swr";
-import { db } from "../../../lib/db";
+import { fetchPhotos } from "../../../lib/queries/photos";
 import { SWRKeys } from "../../../lib/swrKeys";
 import { PhotoBrowser } from "../../templates/PhotoBrowser";
-
-const fetchPhotos = () =>
-  db.selectFrom("photos").selectAll().orderBy("taken_at", "desc").execute();
 
 const Library = () => {
   const { data: photos = [], isLoading } = useSWR(
