@@ -29,7 +29,8 @@
       "Bash(gh api:*)",
       "WebFetch(domain:api.github.com)",
       "WebFetch(domain:raw.githubusercontent.com)",
-      "WebFetch(domain:api.npmjs.org)"
+      "WebFetch(domain:api.npmjs.org)",
+      "Bash(bunx biome:*)"
     ],
     "deny": [
       "Bash(bun run deploy:*)",
