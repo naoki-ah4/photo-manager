@@ -38,7 +38,6 @@
       "Read(id_rsa)",
       "Read(id_ed25519)",
       "Read(**/*token*)",
-      "Read(**/*key*)",
       "Read(.dev.vars)",
       "Read(wrangler.jsonc)",
       "Read(wrangler.toml)",
@@ -51,6 +50,6 @@
       "Bash(mysql:*)",
       "Bash(mongod:*)"
     ],
-    "ask": ["Bash(git push:*)"]
+    "ask": ["Bash(git push:*)", "Read(**/*key*)"]
   }
 }
