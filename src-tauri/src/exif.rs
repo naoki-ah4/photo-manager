@@ -80,6 +80,19 @@ struct ExtractedExif {
   gps_longitude: Option<f64>,
 }
 
+/// EXIF の Value から空でない文字列を取り出す。
+/// Ascii 配列の場合は最初の空でない要素を返す。
+fn ascii_to_string(value: &exif::Value) -> Option<String> {
+  match value {
+    exif::Value::Ascii(v) => v
+      .iter()
+      .find_map(|bytes| std::str::from_utf8(bytes).ok())
+      .map(|s| s.trim().to_string())
+      .filter(|s| !s.is_empty()),
+    _ => None,
+  }
+}
+
 fn read_exif(path: &Path) -> ExtractedExif {
   let file = match File::open(path) {
     Ok(f) => f,
@@ -91,9 +104,8 @@ fn read_exif(path: &Path) -> ExtractedExif {
   };
 
   let get_str = |tag: Tag| -> Option<String> {
-    exif
-      .get_field(tag, In::PRIMARY)
-      .map(|f| f.display_value().to_string())
+    let field = exif.get_field(tag, In::PRIMARY)?;
+    ascii_to_string(&field.value)
   };
 
   let get_rational = |tag: Tag| -> Option<f64> {

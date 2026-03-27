@@ -1,0 +1,117 @@
+import { Combobox, TextInput, useCombobox } from "@mantine/core";
+import { useMemo } from "react";
+import useSWR from "swr";
+import {
+  fetchDistinctCameras,
+  fetchDistinctLenses,
+} from "../../../lib/queries/searchSuggestions";
+import {
+  FILTER_KEYS,
+  getLastToken,
+  replaceLastToken,
+} from "../../../lib/search";
+import { SWRKeys } from "../../../lib/swrKeys";
+import styles from "./index.module.scss";
+
+type SearchInputProps = {
+  value: string;
+  onChange: (value: string) => void;
+};
+
+const KEY_LABELS: Record<string, string> = {
+  "camera:": "カメラで絞り込み",
+  "lens:": "レンズで絞り込み",
+  "before:": "この日以前 (例: 2024-03-31)",
+  "after:": "この日以降 (例: 2024-01-01)",
+};
+
+export const SearchInput = ({ value, onChange }: SearchInputProps) => {
+  const combobox = useCombobox();
+
+  const { data: cameras = [] } = useSWR(
+    SWRKeys.distinctCameras(),
+    fetchDistinctCameras,
+  );
+  const { data: lenses = [] } = useSWR(
+    SWRKeys.distinctLenses(),
+    fetchDistinctLenses,
+  );
+
+  const suggestions = useMemo(() => {
+    const lastToken = getLastToken(value);
+
+    if (!lastToken) return [];
+
+    if (lastToken.startsWith("camera:")) {
+      const partial = lastToken.slice(7).toLowerCase();
+      return cameras
+        .filter((c) => c.trim() && c.toLowerCase().includes(partial))
+        .map((c) => `camera:${c}`);
+    }
+
+    if (lastToken.startsWith("lens:")) {
+      const partial = lastToken.slice(5).toLowerCase();
+      return lenses
+        .filter((l) => l.trim() && l.toLowerCase().includes(partial))
+        .map((l) => `lens:${l}`);
+    }
+
+    const keyOptions = FILTER_KEYS.filter((k) =>
+      `${k}:`.startsWith(lastToken.toLowerCase()),
+    );
+    return keyOptions.map((k) => `${k}:`);
+  }, [value, cameras, lenses]);
+
+  const handleOptionSubmit = (option: string) => {
+    const isKeyOnly = option.endsWith(":");
+    const newValue = replaceLastToken(value, option);
+    onChange(isKeyOnly ? newValue.trimEnd() : newValue);
+    if (!isKeyOnly) {
+      combobox.closeDropdown();
+    }
+  };
+
+  return (
+    <Combobox store={combobox} onOptionSubmit={handleOptionSubmit}>
+      <Combobox.Target>
+        <TextInput
+          placeholder="camera: lens: before: after:"
+          value={value}
+          onChange={(e) => {
+            onChange(e.currentTarget.value);
+            if (e.currentTarget.value) {
+              combobox.openDropdown();
+            } else {
+              combobox.closeDropdown();
+            }
+          }}
+          onFocus={() => {
+            if (value) combobox.openDropdown();
+          }}
+          onBlur={() => combobox.closeDropdown()}
+          onKeyDown={(e) => {
+            if (e.key === "Backspace" && !value) {
+              combobox.closeDropdown();
+            }
+          }}
+          size="xs"
+          w={360}
+        />
+      </Combobox.Target>
+      {suggestions.length > 0 && (
+        <Combobox.Dropdown>
+          <Combobox.Options>
+            {suggestions.slice(0, 10).map((s) => (
+              <Combobox.Option value={s} key={s} className={styles.option}>
+                {s}
+                {KEY_LABELS[s] && (
+                  <span className={styles.optionHint}> — {KEY_LABELS[s]}</span>
+                )}
+              </Combobox.Option>
+            ))}
+          </Combobox.Options>
+        </Combobox.Dropdown>
+      )}
+    </Combobox>
+  );
+};

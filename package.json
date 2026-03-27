@@ -13,13 +13,11 @@
   },
   "dependencies": {
     "@mantine/core": "^8.3.18",
-    "@mantine/dates": "^8.3.18",
     "@mantine/hooks": "^8.3.18",
     "@tauri-apps/api": "^2",
     "@tauri-apps/plugin-dialog": "^2.6.0",
     "@tauri-apps/plugin-opener": "^2",
     "@tauri-apps/plugin-sql": "^2.3.2",
-    "dayjs": "^1.11.20",
     "kysely": "^0.28.13",
     "kysely-dialect-tauri": "^1.2.1",
     "react": "^19.1.0",
