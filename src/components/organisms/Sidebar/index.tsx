@@ -20,12 +20,12 @@ export const Sidebar = () => {
 
   return (
     <Stack gap="xs" p="sm">
+      <NavLink
+        label="すべて"
+        active={location === "/"}
+        onClick={() => setLocation("/")}
+      />
       <NavLink label="フォルダ" defaultOpened childrenOffset={0}>
-        <NavLink
-          label="すべて"
-          active={location === "/"}
-          onClick={() => setLocation("/")}
-        />
         {folders.map((f) => (
           <NavLink
             key={f.id}
