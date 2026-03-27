@@ -113,7 +113,7 @@ const PhotoViewer = () => {
             </Link>
           )}
         </div>
-        {infoOpen && <PhotoInfoPanel photo={photo} />}
+        <PhotoInfoPanel photo={photo} open={infoOpen} />
       </div>
     </Stack>
   );

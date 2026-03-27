@@ -4,6 +4,7 @@ import styles from "./index.module.scss";
 
 type PhotoInfoPanelProps = {
   photo: Photo;
+  open: boolean;
 };
 
 type InfoItem = {
@@ -57,7 +58,7 @@ const InfoSection = ({
   );
 };
 
-export const PhotoInfoPanel = ({ photo }: PhotoInfoPanelProps) => {
+export const PhotoInfoPanel = ({ photo, open }: PhotoInfoPanelProps) => {
   const fileItems: InfoItem[] = [
     { label: "ファイル名", value: photo.file_name },
     { label: "ファイルサイズ", value: formatFileSize(photo.file_size) },
@@ -111,10 +112,12 @@ export const PhotoInfoPanel = ({ photo }: PhotoInfoPanelProps) => {
   ];
 
   return (
-    <div className={styles.panel}>
-      <InfoSection title="ファイル" items={fileItems} />
-      <InfoSection title="EXIF" items={exifItems} />
-      <InfoSection title="GPS" items={gpsItems} />
+    <div className={`${styles.panel} ${open ? "" : styles.closed}`}>
+      <div className={styles.content}>
+        <InfoSection title="ファイル" items={fileItems} />
+        <InfoSection title="EXIF" items={exifItems} />
+        <InfoSection title="GPS" items={gpsItems} />
+      </div>
     </div>
   );
 };
