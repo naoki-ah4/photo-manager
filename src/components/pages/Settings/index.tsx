@@ -64,6 +64,12 @@ const Settings = () => {
     console.log(`EXIF抽出完了: ${count}件`);
   };
 
+  const handleResetDb = async () => {
+    await db.deleteFrom("photos").execute();
+    await db.deleteFrom("directories").execute();
+    await mutate(() => true, undefined, { revalidate: true });
+  };
+
   return (
     <Stack p="md" gap="lg">
       <section>
@@ -113,6 +119,9 @@ const Settings = () => {
           </Button>
           <Button variant="outline" onClick={handleExtractExif}>
             EXIF再抽出
+          </Button>
+          <Button variant="outline" color="red" onClick={handleResetDb}>
+            データベースリセット
           </Button>
         </Group>
       </section>
