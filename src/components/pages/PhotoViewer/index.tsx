@@ -1,6 +1,7 @@
 import { ActionIcon, Group, Stack, Text } from "@mantine/core";
+import { IconInfoCircle } from "@tabler/icons-react";
 import { convertFileSrc } from "@tauri-apps/api/core";
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import useSWR from "swr";
 import { Link, useLocation, useParams } from "wouter";
 import { db } from "../../../lib/db";
@@ -10,12 +11,14 @@ import {
 } from "../../../lib/queries/photos";
 import { SWRKeys } from "../../../lib/swrKeys";
 import { ImageViewer } from "../../organisms/ImageViewer";
+import { PhotoInfoPanel } from "../../organisms/PhotoInfoPanel";
 import styles from "./index.module.scss";
 
 const fetchPhoto = (id: string) =>
   db.selectFrom("photos").selectAll().where("id", "=", id).executeTakeFirst();
 
 const PhotoViewer = () => {
+  const [infoOpen, setInfoOpen] = useState(true);
   const { folderId, id } = useParams<{ folderId: string; id: string }>();
   const [, setLocation] = useLocation();
   const { data: photo } = useSWR(id ? ["photo", id] : null, () =>
@@ -71,36 +74,46 @@ const PhotoViewer = () => {
             {currentIndex + 1} / {photos.length}
           </Text>
         )}
+        <ActionIcon
+          variant="subtle"
+          ml="auto"
+          onClick={() => setInfoOpen((prev) => !prev)}
+        >
+          <IconInfoCircle size={18} />
+        </ActionIcon>
       </Group>
-      <div className={styles.viewer}>
-        {prevPhoto && (
-          <Link
-            to={toPhotoPath(prevPhoto.id)}
-            className={`${styles.navButton} ${styles.navPrev}`}
-          >
-            ‹
-          </Link>
-        )}
-        <ImageViewer
-          src={src}
-          alt={photo.file_name}
-          size={
-            photo.width && photo.height
-              ? {
-                  width: photo.width,
-                  height: photo.height,
-                }
-              : undefined
-          }
-        />
-        {nextPhoto && (
-          <Link
-            to={toPhotoPath(nextPhoto.id)}
-            className={`${styles.navButton} ${styles.navNext}`}
-          >
-            ›
-          </Link>
-        )}
+      <div className={styles.body}>
+        <div className={styles.viewer}>
+          {prevPhoto && (
+            <Link
+              to={toPhotoPath(prevPhoto.id)}
+              className={`${styles.navButton} ${styles.navPrev}`}
+            >
+              ‹
+            </Link>
+          )}
+          <ImageViewer
+            src={src}
+            alt={photo.file_name}
+            size={
+              photo.width && photo.height
+                ? {
+                    width: photo.width,
+                    height: photo.height,
+                  }
+                : undefined
+            }
+          />
+          {nextPhoto && (
+            <Link
+              to={toPhotoPath(nextPhoto.id)}
+              className={`${styles.navButton} ${styles.navNext}`}
+            >
+              ›
+            </Link>
+          )}
+        </div>
+        {infoOpen && <PhotoInfoPanel photo={photo} />}
       </div>
     </Stack>
   );

@@ -1,11 +1,18 @@
 .header {
   flex-shrink: 0;
+  border-bottom: 1px solid var(--mantine-color-default-border);
+}
+
+.body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
 }
 
 .viewer {
   position: relative;
   flex: 1;
-  min-height: 0;
+  min-width: 0;
 }
 
 .navButton {
