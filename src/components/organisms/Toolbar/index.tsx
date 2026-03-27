@@ -17,7 +17,11 @@ export const Toolbar = ({
   onSearchQueryChange,
 }: ToolbarProps) => (
   <div className={styles.toolbar}>
-    <SearchInput value={searchQuery} onChange={onSearchQueryChange} />
+    <SearchInput
+      value={searchQuery}
+      onChange={onSearchQueryChange}
+      className={styles.search}
+    />
     <ViewToggle value={viewMode} onChange={onViewModeChange} />
   </div>
 );

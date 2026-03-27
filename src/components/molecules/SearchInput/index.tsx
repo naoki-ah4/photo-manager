@@ -16,6 +16,7 @@ import styles from "./index.module.scss";
 type SearchInputProps = {
   value: string;
   onChange: (value: string) => void;
+  className?: string;
 };
 
 const KEY_LABELS: Record<string, string> = {
@@ -25,7 +26,11 @@ const KEY_LABELS: Record<string, string> = {
   "after:": "この日以降 (例: 2024-01-01)",
 };
 
-export const SearchInput = ({ value, onChange }: SearchInputProps) => {
+export const SearchInput = ({
+  value,
+  onChange,
+  className,
+}: SearchInputProps) => {
   const combobox = useCombobox();
 
   const { data: cameras = [] } = useSWR(
@@ -95,7 +100,7 @@ export const SearchInput = ({ value, onChange }: SearchInputProps) => {
             }
           }}
           size="xs"
-          w={360}
+          className={className}
         />
       </Combobox.Target>
       {suggestions.length > 0 && (
