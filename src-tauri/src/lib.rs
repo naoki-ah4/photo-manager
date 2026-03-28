@@ -37,7 +37,7 @@ pub fn run() {
       // tauri-plugin-sql uses the same DB file
       let db_url = format!(
         "sqlite:{}",
-        app_data_dir.join("photo-manager.db").to_string_lossy()
+        app_data_dir.join("library.db").to_string_lossy()
       );
       app.manage(db_url.clone());
 

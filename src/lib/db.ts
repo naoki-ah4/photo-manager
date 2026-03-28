@@ -5,6 +5,6 @@ import type { DB } from "./schema";
 
 export const db = new Kysely<DB>({
   dialect: new TauriSqliteDialect({
-    database: (prefix) => Database.load(`${prefix}photo-manager.db`),
+    database: (prefix) => Database.load(`${prefix}library.db`),
   }),
 });

@@ -12,7 +12,7 @@ pub struct DbState {
 pub fn init_db(app_data_dir: &Path) -> Result<Connection, Box<dyn std::error::Error>> {
   std::fs::create_dir_all(app_data_dir)?;
 
-  let db_path = app_data_dir.join("photo-manager.db");
+  let db_path = app_data_dir.join("library.db");
   let mut conn = Connection::open(&db_path)?;
 
   conn.pragma_update(None, "journal_mode", "WAL")?;

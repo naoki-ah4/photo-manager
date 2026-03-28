@@ -12,7 +12,7 @@
 
 - **接続設定**: WALモード、busy_timeout=5000ms、foreign_keys=ON
 - **マイグレーション**: refinery (`src-tauri/migrations/` 配下のSQLファイル)
-- **DBファイル**: `{app_data_dir}/photo-manager.db`
+- **DBファイル**: `{app_data_dir}/library.db`
 - **日時型**: INTEGER (UNIX TIME) で統一。`taken_at` のみEXIFにTZ情報がないためTEXT。
 
 #### WALモード
