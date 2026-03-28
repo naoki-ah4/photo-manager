@@ -74,7 +74,8 @@ export const PhotoGrid = ({ folderId, photos, scrollKey }: PhotoGridProps) => {
     virtualizer,
     scrollKey,
     (id) => {
-      const idx = photos.findIndex((p) => p.id === id);
+      // 1行上の方が感覚に近いので-1している
+      const idx = photos.findIndex((p) => p.id === id) - 1;
       return idx === -1 ? 0 : Math.floor(idx / columns);
     },
     (rowIdx) => rows[rowIdx]?.[0]?.id,
