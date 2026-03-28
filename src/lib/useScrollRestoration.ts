@@ -10,15 +10,19 @@ export const useScrollRestore = (
   resolvePhotoId: (virtualizerIndex: number) => string | undefined,
   ready: boolean,
 ) => {
-  const savedId = useRef(sessionStorage.getItem(STORAGE_PREFIX + key));
   const restored = useRef(false);
   const resolvePhotoIdRef = useRef(resolvePhotoId);
   resolvePhotoIdRef.current = resolvePhotoId;
 
   // Restore before paint
   useLayoutEffect(() => {
-    if (restored.current || !ready || !savedId.current) return;
-    const index = resolveIndex(savedId.current);
+    if (restored.current || !ready) return;
+    const savedId = sessionStorage.getItem(STORAGE_PREFIX + key);
+    if (!savedId) {
+      restored.current = true;
+      return;
+    }
+    const index = resolveIndex(savedId);
     if (index > 0) {
       virtualizer.scrollToIndex(index, { align: "start" });
     }
@@ -29,6 +33,7 @@ export const useScrollRestore = (
   useEffect(() => {
     return () => {
       const offset = virtualizer.scrollOffset ?? 0;
+      if (offset === 0) return;
       const firstVisible = virtualizer
         .getVirtualItems()
         .find((item) => item.start >= offset);
