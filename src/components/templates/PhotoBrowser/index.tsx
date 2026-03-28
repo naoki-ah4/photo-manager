@@ -17,7 +17,10 @@ export const PhotoBrowser = ({
   photos,
   isLoading,
 }: PhotoBrowserProps) => {
-  const [viewMode, setViewMode] = useState<ViewMode>("grid");
+  const [viewMode, setViewMode] = useState<ViewMode>(() => {
+    const saved = sessionStorage.getItem("viewMode");
+    return saved === "list" ? "list" : "grid";
+  });
   const [searchQuery, setSearchQuery] = useState("");
 
   const filteredPhotos = useMemo(
@@ -45,7 +48,10 @@ export const PhotoBrowser = ({
     <Stack gap={0} h="100%">
       <Toolbar
         viewMode={viewMode}
-        onViewModeChange={setViewMode}
+        onViewModeChange={(mode) => {
+          sessionStorage.setItem("viewMode", mode);
+          setViewMode(mode);
+        }}
         searchQuery={searchQuery}
         onSearchQueryChange={setSearchQuery}
       />
