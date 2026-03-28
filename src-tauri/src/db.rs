@@ -6,6 +6,9 @@ use std::sync::Mutex;
 embed_migrations!("migrations");
 
 /// See also: src/lib/db.ts DB_FILENAME
+#[cfg(debug_assertions)]
+pub const DB_FILENAME: &str = "library.dev.db";
+#[cfg(not(debug_assertions))]
 pub const DB_FILENAME: &str = "library.db";
 
 pub struct DbState {
