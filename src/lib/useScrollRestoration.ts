@@ -8,7 +8,7 @@ export const useScrollRestore = (
   key: string,
   resolveIndex: (photoId: string) => number,
   resolvePhotoId: (virtualizerIndex: number) => string | undefined,
-  ready = true,
+  ready: boolean,
 ) => {
   const savedId = useRef(sessionStorage.getItem(STORAGE_PREFIX + key));
   const restored = useRef(false);
