@@ -1,31 +1,49 @@
 import { Center, Loader, Stack, Text } from "@mantine/core";
-import { useMemo, useState } from "react";
-import { filterPhotos } from "../../../lib/search";
-import type { Photo, ViewMode } from "../../../lib/types";
+import { useEffect, useMemo, useState } from "react";
+import useSWR from "swr";
+import { fetchPhotosWithSearch } from "../../../lib/queries/photos";
+import { parseSearchQuery } from "../../../lib/search";
+import { SWRKeys } from "../../../lib/swrKeys";
+import type { ViewMode } from "../../../lib/types";
 import { PhotoGrid } from "../../organisms/PhotoGrid";
 import { PhotoList } from "../../organisms/PhotoList";
 import { Toolbar } from "../../organisms/Toolbar";
 
+const SEARCH_STORAGE_KEY = "searchQuery";
+
 type PhotoBrowserProps = {
   folderId: string;
-  photos: Photo[];
-  isLoading: boolean;
 };
 
-export const PhotoBrowser = ({
-  folderId,
-  photos,
-  isLoading,
-}: PhotoBrowserProps) => {
+export const PhotoBrowser = ({ folderId }: PhotoBrowserProps) => {
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     const saved = sessionStorage.getItem("viewMode");
     return saved === "list" ? "list" : "grid";
   });
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(
+    () => sessionStorage.getItem(SEARCH_STORAGE_KEY) ?? "",
+  );
+  const [committedQuery, setCommittedQuery] = useState(
+    () => sessionStorage.getItem(SEARCH_STORAGE_KEY) ?? "",
+  );
 
-  const filteredPhotos = useMemo(
-    () => filterPhotos(photos, searchQuery),
-    [photos, searchQuery],
+  useEffect(() => {
+    sessionStorage.setItem(SEARCH_STORAGE_KEY, committedQuery);
+  }, [committedQuery]);
+
+  const parsed = useMemo(
+    () => parseSearchQuery(committedQuery),
+    [committedQuery],
+  );
+
+  const { data: photos = [], isLoading } = useSWR(
+    SWRKeys.photos(folderId, committedQuery || undefined),
+    () =>
+      fetchPhotosWithSearch({
+        folderId: folderId === "all" ? undefined : folderId,
+        filters: parsed.filters,
+        sorts: parsed.sorts,
+      }),
   );
 
   if (isLoading) {
@@ -36,7 +54,7 @@ export const PhotoBrowser = ({
     );
   }
 
-  if (photos.length === 0) {
+  if (photos.length === 0 && !committedQuery) {
     return (
       <Center h="100%">
         <Text c="dimmed">写真がありません</Text>
@@ -54,23 +72,16 @@ export const PhotoBrowser = ({
         }}
         searchQuery={searchQuery}
         onSearchQueryChange={setSearchQuery}
+        onSearchSubmit={() => setCommittedQuery(searchQuery)}
       />
-      {filteredPhotos.length === 0 ? (
+      {photos.length === 0 ? (
         <Center h="100%">
           <Text c="dimmed">該当する写真がありません</Text>
         </Center>
       ) : viewMode === "grid" ? (
-        <PhotoGrid
-          folderId={folderId}
-          photos={filteredPhotos}
-          scrollKey={folderId}
-        />
+        <PhotoGrid folderId={folderId} photos={photos} scrollKey={folderId} />
       ) : (
-        <PhotoList
-          folderId={folderId}
-          photos={filteredPhotos}
-          scrollKey={folderId}
-        />
+        <PhotoList folderId={folderId} photos={photos} scrollKey={folderId} />
       )}
     </Stack>
   );

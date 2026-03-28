@@ -8,6 +8,7 @@ type ToolbarProps = {
   onViewModeChange: (value: ViewMode) => void;
   searchQuery: string;
   onSearchQueryChange: (value: string) => void;
+  onSearchSubmit: () => void;
 };
 
 export const Toolbar = ({
@@ -15,11 +16,13 @@ export const Toolbar = ({
   onViewModeChange,
   searchQuery,
   onSearchQueryChange,
+  onSearchSubmit,
 }: ToolbarProps) => (
   <div className={styles.toolbar}>
     <SearchInput
       value={searchQuery}
       onChange={onSearchQueryChange}
+      onSubmit={onSearchSubmit}
       className={styles.search}
     />
     <ViewToggle value={viewMode} onChange={onViewModeChange} />

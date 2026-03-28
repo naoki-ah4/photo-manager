@@ -9,13 +9,16 @@ import {
   FILTER_KEYS,
   getLastToken,
   replaceLastToken,
+  SORT_KEYS,
 } from "../../../lib/search";
 import { SWRKeys } from "../../../lib/swrKeys";
+
 import styles from "./index.module.scss";
 
 type SearchInputProps = {
   value: string;
   onChange: (value: string) => void;
+  onSubmit: () => void;
   className?: string;
 };
 
@@ -24,11 +27,18 @@ const KEY_LABELS: Record<string, string> = {
   "lens:": "レンズで絞り込み",
   "before:": "この日以前 (例: 2024-03-31)",
   "after:": "この日以降 (例: 2024-01-01)",
+  "sort:": "並べ替え (例: sort:date-asc,name-desc)",
 };
+
+const SORT_OPTIONS = SORT_KEYS.flatMap((key) => [
+  `sort:${key}-asc`,
+  `sort:${key}-desc`,
+]);
 
 export const SearchInput = ({
   value,
   onChange,
+  onSubmit,
   className,
 }: SearchInputProps) => {
   const combobox = useCombobox();
@@ -61,7 +71,25 @@ export const SearchInput = ({
         .map((l) => `lens:${l}`);
     }
 
-    const keyOptions = FILTER_KEYS.filter((k) =>
+    if (lastToken.startsWith("sort:")) {
+      const partial = lastToken.slice(5).toLowerCase();
+      // カンマ後の部分だけでフィルタリング（例: "date-asc," → 次のキーを提案）
+      const segments = partial.split(",");
+      const lastSegment = segments[segments.length - 1] ?? "";
+      return SORT_OPTIONS.filter((opt) => {
+        const optValue = opt.slice(5); // "sort:" を除去
+        return optValue.startsWith(lastSegment);
+      }).map((opt) => {
+        // カンマ前の部分を保持
+        const prefix = partial.includes(",")
+          ? `sort:${partial.slice(0, partial.lastIndexOf(",") + 1)}`
+          : "sort:";
+        return `${prefix}${opt.slice(5)}`;
+      });
+    }
+
+    const allKeys = [...FILTER_KEYS, "sort" as const];
+    const keyOptions = allKeys.filter((k) =>
       `${k}:`.startsWith(lastToken.toLowerCase()),
     );
     return keyOptions.map((k) => `${k}:`);
@@ -80,11 +108,12 @@ export const SearchInput = ({
     <Combobox store={combobox} onOptionSubmit={handleOptionSubmit}>
       <Combobox.Target>
         <TextInput
-          placeholder="camera: lens: before: after:"
+          placeholder="camera: lens: before: after: sort:"
           value={value}
           onChange={(e) => {
-            onChange(e.currentTarget.value);
-            if (e.currentTarget.value) {
+            const newValue = e.currentTarget.value;
+            onChange(newValue);
+            if (newValue) {
               combobox.openDropdown();
             } else {
               combobox.closeDropdown();
@@ -95,6 +124,9 @@ export const SearchInput = ({
           }}
           onBlur={() => combobox.closeDropdown()}
           onKeyDown={(e) => {
+            if (e.key === "Enter" && !combobox.dropdownOpened) {
+              onSubmit();
+            }
             if (e.key === "Backspace" && !value) {
               combobox.closeDropdown();
             }

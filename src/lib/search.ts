@@ -1,16 +1,52 @@
-import type { Photo } from "./types";
-
 const FILTER_KEYS = ["camera", "lens", "before", "after"] as const;
 type FilterKey = (typeof FILTER_KEYS)[number];
+
+const SORT_KEYS = ["date", "name", "size", "rating"] as const;
+type SortKey = (typeof SORT_KEYS)[number];
+
+type SortDirection = "asc" | "desc";
 
 export type SearchFilter = {
   key: FilterKey;
   value: string;
 };
 
-export const parseSearchQuery = (query: string): SearchFilter[] => {
+export type SortClause = {
+  key: SortKey;
+  direction: SortDirection;
+};
+
+export type ParsedSearch = {
+  filters: SearchFilter[];
+  sorts: SortClause[];
+};
+
+const parseSortToken = (value: string): SortClause[] => {
+  const clauses: SortClause[] = [];
+  const segments = value.split(",");
+
+  for (const segment of segments) {
+    const lastDash = segment.lastIndexOf("-");
+    if (lastDash === -1) continue;
+
+    const key = segment.slice(0, lastDash);
+    const dir = segment.slice(lastDash + 1);
+
+    if (
+      SORT_KEYS.includes(key as SortKey) &&
+      (dir === "asc" || dir === "desc")
+    ) {
+      clauses.push({ key: key as SortKey, direction: dir });
+    }
+  }
+
+  return clauses;
+};
+
+export const parseSearchQuery = (query: string): ParsedSearch => {
   const tokens = query.trim().split(/\s+/);
   const filters: SearchFilter[] = [];
+  const sorts: SortClause[] = [];
 
   for (const token of tokens) {
     const colonIndex = token.indexOf(":");
@@ -20,42 +56,15 @@ export const parseSearchQuery = (query: string): SearchFilter[] => {
     const value = token.slice(colonIndex + 1);
 
     if (!value) continue;
-    if (FILTER_KEYS.includes(key as FilterKey)) {
+
+    if (key === "sort") {
+      sorts.push(...parseSortToken(value));
+    } else if (FILTER_KEYS.includes(key as FilterKey)) {
       filters.push({ key: key as FilterKey, value });
     }
   }
 
-  return filters;
-};
-
-const matchesFilter = (photo: Photo, filter: SearchFilter): boolean => {
-  const lower = filter.value.toLowerCase();
-
-  switch (filter.key) {
-    case "camera": {
-      const make = photo.camera_make?.toLowerCase() ?? "";
-      const model = photo.camera_model?.toLowerCase() ?? "";
-      return make.includes(lower) || model.includes(lower);
-    }
-    case "lens":
-      return (photo.lens_model?.toLowerCase() ?? "").includes(lower);
-    case "before":
-      return (
-        photo.taken_at !== null && photo.taken_at.slice(0, 10) <= filter.value
-      );
-    case "after":
-      return (
-        photo.taken_at !== null && photo.taken_at.slice(0, 10) >= filter.value
-      );
-  }
-};
-
-export const filterPhotos = (photos: Photo[], query: string): Photo[] => {
-  const filters = parseSearchQuery(query);
-  if (filters.length === 0) return photos;
-  return photos.filter((photo) =>
-    filters.every((filter) => matchesFilter(photo, filter)),
-  );
+  return { filters, sorts };
 };
 
 export const getLastToken = (query: string): string => {
@@ -72,4 +81,4 @@ export const replaceLastToken = (
   return `${query.slice(0, lastSpaceIndex + 1)}${replacement} `;
 };
 
-export { FILTER_KEYS };
+export { FILTER_KEYS, SORT_KEYS };

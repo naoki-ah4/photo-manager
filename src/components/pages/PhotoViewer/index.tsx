@@ -1,18 +1,18 @@
 import { ActionIcon, Group, Stack, Text } from "@mantine/core";
 import { IconInfoCircle } from "@tabler/icons-react";
 import { convertFileSrc } from "@tauri-apps/api/core";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import { Link, useLocation, useParams } from "wouter";
 import { db } from "../../../lib/db";
-import {
-  fetchPhotos,
-  fetchPhotosByWatchFolder,
-} from "../../../lib/queries/photos";
+import { fetchPhotosWithSearch } from "../../../lib/queries/photos";
+import { parseSearchQuery } from "../../../lib/search";
 import { SWRKeys } from "../../../lib/swrKeys";
 import { ImageViewer } from "../../organisms/ImageViewer";
 import { PhotoInfoPanel } from "../../organisms/PhotoInfoPanel";
 import styles from "./index.module.scss";
+
+const SEARCH_STORAGE_KEY = "searchQuery";
 
 const fetchPhoto = (id: string) =>
   db.selectFrom("photos").selectAll().where("id", "=", id).executeTakeFirst();
@@ -21,14 +21,23 @@ const PhotoViewer = () => {
   const [infoOpen, setInfoOpen] = useState(true);
   const { folderId, id } = useParams<{ folderId: string; id: string }>();
   const [, setLocation] = useLocation();
+
   const { data: photo } = useSWR(id ? ["photo", id] : null, () =>
     fetchPhoto(id),
   );
 
+  const searchQuery = sessionStorage.getItem(SEARCH_STORAGE_KEY) ?? "";
+  const parsed = useMemo(() => parseSearchQuery(searchQuery), [searchQuery]);
+
   const isAll = folderId === "all";
   const { data: photos = [] } = useSWR(
-    isAll ? SWRKeys.photos() : SWRKeys.photos(folderId),
-    isAll ? fetchPhotos : () => fetchPhotosByWatchFolder(folderId),
+    SWRKeys.photos(folderId, searchQuery || undefined),
+    () =>
+      fetchPhotosWithSearch({
+        folderId: isAll ? undefined : folderId,
+        filters: parsed.filters,
+        sorts: parsed.sorts,
+      }),
   );
 
   const currentIndex = photos.findIndex((p) => p.id === id);
