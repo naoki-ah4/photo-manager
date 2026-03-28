@@ -1,12 +1,14 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { Photo } from "../../../lib/types";
+import { useScrollRestore } from "../../../lib/useScrollRestoration";
 import { PhotoGridItem } from "../../molecules/PhotoGridItem";
 import styles from "./index.module.css";
 
 type PhotoGridProps = {
   folderId: string;
   photos: Photo[];
+  scrollKey: string;
 };
 
 const GAP = 4;
@@ -29,7 +31,7 @@ const calcColumns = (width: number): ColumnCount => {
 
 const DEFAULT_ROW_HEIGHT = 120;
 
-export const PhotoGrid = ({ folderId, photos }: PhotoGridProps) => {
+export const PhotoGrid = ({ folderId, photos, scrollKey }: PhotoGridProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
 
@@ -67,6 +69,17 @@ export const PhotoGrid = ({ folderId, photos }: PhotoGridProps) => {
     gap: GAP,
     overscan: 5,
   });
+
+  useScrollRestore(
+    virtualizer,
+    scrollKey,
+    (id) => {
+      const idx = photos.findIndex((p) => p.id === id);
+      return idx === -1 ? 0 : Math.floor(idx / columns);
+    },
+    (rowIdx) => rows[rowIdx]?.[0]?.id,
+    containerWidth > 0,
+  );
 
   return (
     <div ref={scrollRef} className={styles.scrollContainer}>

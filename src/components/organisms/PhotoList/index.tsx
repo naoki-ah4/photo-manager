@@ -2,17 +2,19 @@ import { Table } from "@mantine/core";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useRef } from "react";
 import type { Photo } from "../../../lib/types";
+import { useScrollRestore } from "../../../lib/useScrollRestoration";
 import { PhotoListRow } from "../../molecules/PhotoListRow";
 import styles from "./index.module.css";
 
 type PhotoListProps = {
   folderId: string;
   photos: Photo[];
+  scrollKey: string;
 };
 
 const ROW_HEIGHT = 52;
 
-export const PhotoList = ({ folderId, photos }: PhotoListProps) => {
+export const PhotoList = ({ folderId, photos, scrollKey }: PhotoListProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const virtualizer = useVirtualizer({
@@ -21,6 +23,16 @@ export const PhotoList = ({ folderId, photos }: PhotoListProps) => {
     estimateSize: () => ROW_HEIGHT,
     overscan: 20,
   });
+
+  useScrollRestore(
+    virtualizer,
+    scrollKey,
+    (id) => {
+      const idx = photos.findIndex((p) => p.id === id);
+      return idx === -1 ? 0 : idx;
+    },
+    (idx) => photos[idx]?.id,
+  );
 
   const virtualItems = virtualizer.getVirtualItems();
   const paddingTop = virtualItems.length > 0 ? virtualItems[0].start : 0;

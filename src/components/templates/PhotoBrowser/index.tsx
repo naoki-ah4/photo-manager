@@ -54,9 +54,17 @@ export const PhotoBrowser = ({
           <Text c="dimmed">該当する写真がありません</Text>
         </Center>
       ) : viewMode === "grid" ? (
-        <PhotoGrid folderId={folderId} photos={filteredPhotos} />
+        <PhotoGrid
+          folderId={folderId}
+          photos={filteredPhotos}
+          scrollKey={folderId}
+        />
       ) : (
-        <PhotoList folderId={folderId} photos={filteredPhotos} />
+        <PhotoList
+          folderId={folderId}
+          photos={filteredPhotos}
+          scrollKey={folderId}
+        />
       )}
     </Stack>
   );
