@@ -47,7 +47,12 @@ pub fn scan_one(
 }
 
 /// DBに登録済みの全watch_folderを走査する。
-pub fn scan_all(conn: &Mutex<Connection>, thumb_store: &ThumbnailStore) -> Result<usize, String> {
+/// `on_progress` は各フォルダのスキャン完了時に (完了フォルダ数, 総フォルダ数, 累計upsert件数) を受け取る。
+pub fn scan_all(
+  conn: &Mutex<Connection>,
+  thumb_store: &ThumbnailStore,
+  on_progress: impl Fn(usize, usize, usize),
+) -> Result<usize, String> {
   let folder_ids = {
     let conn = conn.lock().map_err(|e| e.to_string())?;
     let mut stmt = conn
@@ -61,9 +66,11 @@ pub fn scan_all(conn: &Mutex<Connection>, thumb_store: &ThumbnailStore) -> Resul
     ids
   };
 
+  let total_folders = folder_ids.len();
   let mut total = 0;
-  for id in &folder_ids {
+  for (i, id) in folder_ids.iter().enumerate() {
     total += scan_one(conn, thumb_store, id)?;
+    on_progress(i + 1, total_folders, total);
   }
 
   Ok(total)

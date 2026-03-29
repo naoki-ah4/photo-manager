@@ -7,7 +7,10 @@ import {
   Text,
   Title,
 } from "@mantine/core";
+import { notifications } from "@mantine/notifications";
+import { listen } from "@tauri-apps/api/event";
 import { open } from "@tauri-apps/plugin-dialog";
+import { useCallback, useEffect, useState } from "react";
 import useSWR, { mutate } from "swr";
 import { v4 as uuidv4 } from "uuid";
 import { extractExif, scanAll } from "../../../lib/commands";
@@ -36,11 +39,59 @@ const invalidateWatchFolders = () =>
     { revalidate: true },
   );
 
+type ScanProgress = {
+  done_folders: number;
+  total_folders: number;
+  upserted: number;
+};
+
+type ExifProgress = {
+  done: number;
+  total: number;
+};
+
+const SCAN_NOTIFICATION_ID = "scan-progress";
+const EXIF_NOTIFICATION_ID = "exif-progress";
+
 const Settings = () => {
   const { data: folders = [] } = useSWR(
     SWRKeys.watchFolders("settings"),
     fetchWatchFolders,
   );
+
+  const [scanning, setScanning] = useState(false);
+  const [extracting, setExtracting] = useState(false);
+
+  useEffect(() => {
+    const unlistenScan = listen<ScanProgress>("scan:progress", (event) => {
+      const { done_folders, total_folders, upserted } = event.payload;
+      notifications.update({
+        id: SCAN_NOTIFICATION_ID,
+        title: "スキャン中...",
+        message: `フォルダ ${done_folders}/${total_folders} 完了 (${upserted}件)`,
+        loading: true,
+        autoClose: false,
+        withCloseButton: false,
+      });
+    });
+
+    const unlistenExif = listen<ExifProgress>("exif:progress", (event) => {
+      const { done, total } = event.payload;
+      notifications.update({
+        id: EXIF_NOTIFICATION_ID,
+        title: "EXIF抽出中...",
+        message: `${done}/${total}件`,
+        loading: true,
+        autoClose: false,
+        withCloseButton: false,
+      });
+    });
+
+    return () => {
+      unlistenScan.then((f) => f());
+      unlistenExif.then((f) => f());
+    };
+  }, []);
 
   const handleAddFolder = async () => {
     const selected = await open({ directory: true, multiple: false });
@@ -54,15 +105,77 @@ const Settings = () => {
     await invalidateWatchFolders();
   };
 
-  const handleScanAll = async () => {
-    const count = await scanAll();
-    console.log(`スキャン完了: ${count}件`);
-  };
+  const handleScanAll = useCallback(async () => {
+    if (scanning) return;
+    setScanning(true);
+    notifications.show({
+      id: SCAN_NOTIFICATION_ID,
+      title: "スキャン中...",
+      message: "開始しています...",
+      loading: true,
+      autoClose: false,
+      withCloseButton: false,
+    });
+    try {
+      const count = await scanAll();
+      notifications.update({
+        id: SCAN_NOTIFICATION_ID,
+        title: "スキャン完了",
+        message: `${count}件`,
+        loading: false,
+        autoClose: 4000,
+        withCloseButton: true,
+      });
+    } catch (e) {
+      notifications.update({
+        id: SCAN_NOTIFICATION_ID,
+        title: "スキャンエラー",
+        message: String(e),
+        color: "red",
+        loading: false,
+        autoClose: 5000,
+        withCloseButton: true,
+      });
+    } finally {
+      setScanning(false);
+    }
+  }, [scanning]);
 
-  const handleExtractExif = async () => {
-    const count = await extractExif();
-    console.log(`EXIF抽出完了: ${count}件`);
-  };
+  const handleExtractExif = useCallback(async () => {
+    if (extracting) return;
+    setExtracting(true);
+    notifications.show({
+      id: EXIF_NOTIFICATION_ID,
+      title: "EXIF抽出中...",
+      message: "開始しています...",
+      loading: true,
+      autoClose: false,
+      withCloseButton: false,
+    });
+    try {
+      const count = await extractExif();
+      notifications.update({
+        id: EXIF_NOTIFICATION_ID,
+        title: "EXIF抽出完了",
+        message: `${count}件`,
+        loading: false,
+        autoClose: 4000,
+        withCloseButton: true,
+      });
+    } catch (e) {
+      notifications.update({
+        id: EXIF_NOTIFICATION_ID,
+        title: "EXIF抽出エラー",
+        message: String(e),
+        color: "red",
+        loading: false,
+        autoClose: 5000,
+        withCloseButton: true,
+      });
+    } finally {
+      setExtracting(false);
+    }
+  }, [extracting]);
 
   const handleResetDb = async () => {
     await db.deleteFrom("photos").execute();
@@ -114,10 +227,14 @@ const Settings = () => {
           アクション
         </Title>
         <Group>
-          <Button variant="outline" onClick={handleScanAll}>
+          <Button variant="outline" onClick={handleScanAll} loading={scanning}>
             全フォルダ再スキャン
           </Button>
-          <Button variant="outline" onClick={handleExtractExif}>
+          <Button
+            variant="outline"
+            onClick={handleExtractExif}
+            loading={extracting}
+          >
             EXIF再抽出
           </Button>
           <Button variant="outline" color="red" onClick={handleResetDb}>

@@ -14,14 +14,19 @@ struct PhotoForExif {
 const CHUNK_SIZE: usize = 100;
 
 /// 未処理またはファイル更新後にEXIF未抽出の写真を対象にメタデータを抽出する。
+/// `on_progress` は各チャンク処理完了時に (処理済み件数, 総件数) を受け取る。
 /// 処理した写真の件数を返す。
-pub fn extract_pending(conn: &Mutex<Connection>) -> Result<usize, rusqlite::Error> {
+pub fn extract_pending(
+  conn: &Mutex<Connection>,
+  on_progress: impl Fn(usize, usize),
+) -> Result<usize, rusqlite::Error> {
   // SELECT (短時間ロック)
   let photos = {
     let conn = conn.lock().unwrap();
     fetch_pending(&conn)?
   };
 
+  let total = photos.len();
   let mut count = 0;
 
   for chunk in photos.chunks(CHUNK_SIZE) {
@@ -40,6 +45,7 @@ pub fn extract_pending(conn: &Mutex<Connection>) -> Result<usize, rusqlite::Erro
     tx.commit()?;
 
     count += results.len();
+    on_progress(count, total);
   }
 
   Ok(count)

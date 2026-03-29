@@ -1,25 +1,68 @@
-use tauri::State;
+use serde::Serialize;
+use tauri::{AppHandle, Emitter, Manager};
 
 use crate::db::DbState;
 use crate::exif;
 use crate::scan;
 use crate::thumbnail::ThumbnailState;
 
-#[tauri::command]
-pub fn scan_one(
-  db: State<'_, DbState>,
-  thumb: State<'_, ThumbnailState>,
-  watch_folder_id: String,
-) -> Result<usize, String> {
-  scan::scan_one(&db.conn, &thumb.store, &watch_folder_id)
+#[derive(Clone, Serialize)]
+struct ScanProgress {
+  done_folders: usize,
+  total_folders: usize,
+  upserted: usize,
+}
+
+#[derive(Clone, Serialize)]
+struct ExifProgress {
+  done: usize,
+  total: usize,
 }
 
 #[tauri::command]
-pub fn scan_all(db: State<'_, DbState>, thumb: State<'_, ThumbnailState>) -> Result<usize, String> {
-  scan::scan_all(&db.conn, &thumb.store)
+pub async fn scan_one(app: AppHandle, watch_folder_id: String) -> Result<usize, String> {
+  tauri::async_runtime::spawn_blocking(move || {
+    let db = app.state::<DbState>();
+    let thumb = app.state::<ThumbnailState>();
+    scan::scan_one(&db.conn, &thumb.store, &watch_folder_id)
+  })
+  .await
+  .map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
-pub fn extract_exif(db: State<'_, DbState>) -> Result<usize, String> {
-  exif::extract_pending(&db.conn).map_err(|e| e.to_string())
+pub async fn scan_all(app: AppHandle) -> Result<usize, String> {
+  tauri::async_runtime::spawn_blocking(move || {
+    let db = app.state::<DbState>();
+    let thumb = app.state::<ThumbnailState>();
+    scan::scan_all(
+      &db.conn,
+      &thumb.store,
+      |done_folders, total_folders, upserted| {
+        let _ = app.emit(
+          "scan:progress",
+          ScanProgress {
+            done_folders,
+            total_folders,
+            upserted,
+          },
+        );
+      },
+    )
+  })
+  .await
+  .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn extract_exif(app: AppHandle) -> Result<usize, String> {
+  tauri::async_runtime::spawn_blocking(move || {
+    let db = app.state::<DbState>();
+    exif::extract_pending(&db.conn, |done, total| {
+      let _ = app.emit("exif:progress", ExifProgress { done, total });
+    })
+    .map_err(|e| e.to_string())
+  })
+  .await
+  .map_err(|e| e.to_string())?
 }
