@@ -7,8 +7,11 @@ import Settings from "./components/pages/Settings";
 const Routes = () => (
   <Switch>
     <Route path="/" component={Library} />
-    <Route path="/folders/:folderId" component={FolderView} />
-    <Route path="/folders/:folderId/photos/:id" component={PhotoViewer} />
+    <Route path="/directories/:directoryId" component={FolderView} />
+    <Route
+      path="/directories/:directoryId/photos/:id"
+      component={PhotoViewer}
+    />
     <Route path="/settings" component={Settings} />
   </Switch>
 );

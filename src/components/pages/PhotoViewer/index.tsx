@@ -19,7 +19,7 @@ const fetchPhoto = (id: string) =>
 
 const PhotoViewer = () => {
   const [infoOpen, setInfoOpen] = useState(true);
-  const { folderId, id } = useParams<{ folderId: string; id: string }>();
+  const { directoryId, id } = useParams<{ directoryId: string; id: string }>();
   const [, setLocation] = useLocation();
 
   const { data: photo } = useSWR(id ? ["photo", id] : null, () =>
@@ -29,12 +29,12 @@ const PhotoViewer = () => {
   const searchQuery = sessionStorage.getItem(SEARCH_STORAGE_KEY) ?? "";
   const parsed = useMemo(() => parseSearchQuery(searchQuery), [searchQuery]);
 
-  const isAll = folderId === "all";
+  const isAll = directoryId === "all";
   const { data: photos = [] } = useSWR(
-    SWRKeys.photos(folderId, searchQuery || undefined),
+    SWRKeys.photos(directoryId, searchQuery || undefined),
     () =>
       fetchPhotosWithSearch({
-        folderId: isAll ? undefined : folderId,
+        directoryId: isAll ? undefined : directoryId,
         filters: parsed.filters,
         sorts: parsed.sorts,
       }),
@@ -48,8 +48,8 @@ const PhotoViewer = () => {
       : undefined;
 
   const toPhotoPath = useCallback(
-    (photoId: string) => `/folders/${folderId}/photos/${photoId}`,
-    [folderId],
+    (photoId: string) => `/directories/${directoryId}/photos/${photoId}`,
+    [directoryId],
   );
 
   useEffect(() => {
@@ -72,7 +72,7 @@ const PhotoViewer = () => {
   return (
     <Stack gap={0} h="calc(100vh - 32px)">
       <Group className={styles.header} px="sm" py={4}>
-        <Link to={isAll ? "/" : `/folders/${folderId}`}>
+        <Link to={isAll ? "/" : `/directories/${directoryId}`}>
           <ActionIcon variant="subtle">←</ActionIcon>
         </Link>
         <Text size="sm" truncate>

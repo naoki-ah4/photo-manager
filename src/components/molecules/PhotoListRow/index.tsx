@@ -5,7 +5,7 @@ import { Thumbnail } from "../../atoms/Thumbnail";
 import styles from "./index.module.css";
 
 type PhotoListRowProps = {
-  folderId: string;
+  directoryId: string;
   photo: Photo;
 };
 
@@ -21,12 +21,14 @@ const formatDate = (takenAt: string | null): string => {
   return takenAt.replace(/^(\d{4}):(\d{2}):(\d{2})/, "$1/$2/$3");
 };
 
-export const PhotoListRow = ({ folderId, photo }: PhotoListRowProps) => {
+export const PhotoListRow = ({ directoryId, photo }: PhotoListRowProps) => {
   const [, setLocation] = useLocation();
 
   return (
     <Table.Tr
-      onClick={() => setLocation(`/folders/${folderId}/photos/${photo.id}`)}
+      onClick={() =>
+        setLocation(`/directories/${directoryId}/photos/${photo.id}`)
+      }
       className={styles.row}
     >
       <Table.Td>

@@ -5,14 +5,14 @@ import { Thumbnail } from "../../atoms/Thumbnail";
 import styles from "./index.module.css";
 
 type PhotoGridItemProps = {
-  folderId: string;
+  directoryId: string;
   photo: Photo;
 };
 
-export const PhotoGridItem = ({ folderId, photo }: PhotoGridItemProps) => (
+export const PhotoGridItem = ({ directoryId, photo }: PhotoGridItemProps) => (
   <Box
     component={Link}
-    href={`/folders/${folderId}/photos/${photo.id}`}
+    href={`/directories/${directoryId}/photos/${photo.id}`}
     className={styles.item}
   >
     <Thumbnail photoId={photo.id} size="100%" />

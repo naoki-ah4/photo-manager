@@ -12,10 +12,10 @@ import { Toolbar } from "../../organisms/Toolbar";
 const SEARCH_STORAGE_KEY = "searchQuery";
 
 type PhotoBrowserProps = {
-  folderId: string;
+  directoryId: string;
 };
 
-export const PhotoBrowser = ({ folderId }: PhotoBrowserProps) => {
+export const PhotoBrowser = ({ directoryId }: PhotoBrowserProps) => {
   const [viewMode, setViewMode] = useState<ViewMode>(() => {
     const saved = sessionStorage.getItem("viewMode");
     return saved === "list" ? "list" : "grid";
@@ -37,10 +37,10 @@ export const PhotoBrowser = ({ folderId }: PhotoBrowserProps) => {
   );
 
   const { data: photos = [], isLoading } = useSWR(
-    SWRKeys.photos(folderId, committedQuery || undefined),
+    SWRKeys.photos(directoryId, committedQuery || undefined),
     () =>
       fetchPhotosWithSearch({
-        folderId: folderId === "all" ? undefined : folderId,
+        directoryId: directoryId === "all" ? undefined : directoryId,
         filters: parsed.filters,
         sorts: parsed.sorts,
       }),
@@ -79,9 +79,17 @@ export const PhotoBrowser = ({ folderId }: PhotoBrowserProps) => {
           <Text c="dimmed">該当する写真がありません</Text>
         </Center>
       ) : viewMode === "grid" ? (
-        <PhotoGrid folderId={folderId} photos={photos} scrollKey={folderId} />
+        <PhotoGrid
+          directoryId={directoryId}
+          photos={photos}
+          scrollKey={directoryId}
+        />
       ) : (
-        <PhotoList folderId={folderId} photos={photos} scrollKey={folderId} />
+        <PhotoList
+          directoryId={directoryId}
+          photos={photos}
+          scrollKey={directoryId}
+        />
       )}
     </Stack>
   );

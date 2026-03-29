@@ -7,14 +7,18 @@ import { PhotoListRow } from "../../molecules/PhotoListRow";
 import styles from "./index.module.css";
 
 type PhotoListProps = {
-  folderId: string;
+  directoryId: string;
   photos: Photo[];
   scrollKey: string;
 };
 
 const ROW_HEIGHT = 52;
 
-export const PhotoList = ({ folderId, photos, scrollKey }: PhotoListProps) => {
+export const PhotoList = ({
+  directoryId,
+  photos,
+  scrollKey,
+}: PhotoListProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [ready, setReady] = useState(false);
   useLayoutEffect(() => setReady(true), []);
@@ -68,7 +72,7 @@ export const PhotoList = ({ folderId, photos, scrollKey }: PhotoListProps) => {
           {virtualItems.map((virtualRow) => (
             <PhotoListRow
               key={photos[virtualRow.index].id}
-              folderId={folderId}
+              directoryId={directoryId}
               photo={photos[virtualRow.index]}
             />
           ))}

@@ -2,10 +2,11 @@ type WatchFolderScope = "sidebar" | "settings";
 
 export const SWRKeys = {
   watchFolders: (scope: WatchFolderScope) => ["watch_folders", scope],
-  photos: (folderId?: string, searchQuery?: string) =>
+  directories: () => ["directories"],
+  photos: (directoryId?: string, searchQuery?: string) =>
     searchQuery
-      ? ["photos", folderId ?? "all", searchQuery]
-      : ["photos", folderId ?? "all"],
+      ? ["photos", directoryId ?? "all", searchQuery]
+      : ["photos", directoryId ?? "all"],
   distinctCameras: () => ["distinct_cameras"],
   distinctLenses: () => ["distinct_lenses"],
 } as const;

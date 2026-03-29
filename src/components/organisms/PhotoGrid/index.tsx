@@ -6,7 +6,7 @@ import { PhotoGridItem } from "../../molecules/PhotoGridItem";
 import styles from "./index.module.css";
 
 type PhotoGridProps = {
-  folderId: string;
+  directoryId: string;
   photos: Photo[];
   scrollKey: string;
 };
@@ -31,7 +31,11 @@ const calcColumns = (width: number): ColumnCount => {
 
 const DEFAULT_ROW_HEIGHT = 120;
 
-export const PhotoGrid = ({ folderId, photos, scrollKey }: PhotoGridProps) => {
+export const PhotoGrid = ({
+  directoryId,
+  photos,
+  scrollKey,
+}: PhotoGridProps) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(0);
 
@@ -99,7 +103,11 @@ export const PhotoGrid = ({ folderId, photos, scrollKey }: PhotoGridProps) => {
             }}
           >
             {rows[virtualRow.index].map((photo) => (
-              <PhotoGridItem key={photo.id} folderId={folderId} photo={photo} />
+              <PhotoGridItem
+                key={photo.id}
+                directoryId={directoryId}
+                photo={photo}
+              />
             ))}
           </div>
         ))}

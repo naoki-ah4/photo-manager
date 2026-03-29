@@ -1,9 +1,9 @@
-import { sql } from "kysely";
+import { type SqlBool, sql } from "kysely";
 import { db } from "../db";
 import type { SearchFilter, SortClause } from "../search";
 
 type PhotoQueryParams = {
-  folderId?: string;
+  directoryId?: string;
   filters: SearchFilter[];
   sorts: SortClause[];
 };
@@ -29,20 +29,22 @@ const sortKeyToExpr = (key: SortClause["key"]) => {
 };
 
 export const fetchPhotosWithSearch = ({
-  folderId,
+  directoryId,
   filters,
   sorts,
 }: PhotoQueryParams) => {
   let query = db.selectFrom("photos").selectAll();
 
-  if (folderId) {
+  if (directoryId) {
     query = query.where(
-      "directory_id",
-      "in",
-      db
-        .selectFrom("directories")
-        .select("id")
-        .where("watch_folder_id", "=", folderId),
+      sql<SqlBool>`directory_id IN (
+        WITH RECURSIVE desc(id) AS (
+          SELECT id FROM directories WHERE id = ${directoryId}
+          UNION ALL
+          SELECT d.id FROM directories d JOIN desc ON d.parent_id = desc.id
+        )
+        SELECT id FROM desc
+      )`,
     );
   }
 
