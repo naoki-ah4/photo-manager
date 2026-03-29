@@ -24,7 +24,7 @@ export interface Photos {
   camera_model: string | null;
   created_at: Generated<number>;
   directory_id: string;
-  exposure_time: string | null;
+  exposure_time: number | null;
   f_number: number | null;
   file_hash: string | null;
   file_modified_at: number;

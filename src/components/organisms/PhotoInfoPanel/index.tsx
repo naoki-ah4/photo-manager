@@ -12,6 +12,13 @@ type InfoItem = {
   value: string | undefined;
 };
 
+const formatExposureTime = (value: number): string => {
+  if (value >= 1) {
+    return `${value}s`;
+  }
+  return `1/${Math.round(1 / value)}s`;
+};
+
 const formatFileSize = (bytes: number): string => {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -92,7 +99,10 @@ export const PhotoInfoPanel = ({ photo, open }: PhotoInfoPanelProps) => {
     },
     {
       label: "シャッタースピード",
-      value: photo.exposure_time ?? undefined,
+      value:
+        photo.exposure_time != null
+          ? formatExposureTime(photo.exposure_time)
+          : undefined,
     },
     {
       label: "ISO",

@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS photos (
     lens_model TEXT,
     iso INTEGER,
     f_number REAL,
-    exposure_time TEXT,
+    exposure_time REAL,
     focal_length REAL,
     focal_length_35mm REAL,
     gps_latitude REAL,

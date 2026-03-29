@@ -73,7 +73,7 @@ struct ExtractedExif {
   lens_model: Option<String>,
   iso: Option<u32>,
   f_number: Option<f64>,
-  exposure_time: Option<String>,
+  exposure_time: Option<f64>,
   focal_length: Option<f64>,
   focal_length_35mm: Option<f64>,
   gps_latitude: Option<f64>,
@@ -139,7 +139,7 @@ fn read_exif(path: &Path) -> ExtractedExif {
     lens_model: get_str(Tag::LensModel),
     iso,
     f_number: get_rational(Tag::FNumber),
-    exposure_time: get_str(Tag::ExposureTime),
+    exposure_time: get_rational(Tag::ExposureTime),
     focal_length: get_rational(Tag::FocalLength),
     focal_length_35mm: exif
       .get_field(Tag::FocalLengthIn35mmFilm, In::PRIMARY)
