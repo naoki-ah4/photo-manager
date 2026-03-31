@@ -12,4 +12,22 @@
   max-width: 100%;
   max-height: min(100%, 100vh);
   object-fit: contain;
+  transition: transform 0.2s ease;
+}
+
+.image[data-rotation="90"] {
+  transform: rotate(90deg);
+}
+
+.image[data-rotation="180"] {
+  transform: rotate(180deg);
+}
+
+.image[data-rotation="270"] {
+  transform: rotate(270deg);
+}
+
+.rotated {
+  max-width: 100vh;
+  max-height: 100vw;
 }

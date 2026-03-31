@@ -1,5 +1,9 @@
 import { ActionIcon, Group, Stack, Text } from "@mantine/core";
-import { IconInfoCircle } from "@tabler/icons-react";
+import {
+  IconInfoCircle,
+  IconRotate,
+  IconRotateClockwise,
+} from "@tabler/icons-react";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
@@ -19,8 +23,15 @@ const fetchPhoto = (id: string) =>
 
 const PhotoViewer = () => {
   const [infoOpen, setInfoOpen] = useState(true);
+  const [rotation, setRotation] = useState(0);
+  const rotateLeft = () => setRotation((r) => (r + 270) % 360);
+  const rotateRight = () => setRotation((r) => (r + 90) % 360);
   const { directoryId, id } = useParams<{ directoryId: string; id: string }>();
   const [, setLocation] = useLocation();
+
+  // 写真が切り替わったら回転をリセット
+  // biome-ignore lint/correctness/useExhaustiveDependencies: idの変更で回転をリセットする意図的な依存
+  useEffect(() => setRotation(0), [id]);
 
   const { data: photo } = useSWR(id ? ["photo", id] : null, () =>
     fetchPhoto(id),
@@ -83,13 +94,20 @@ const PhotoViewer = () => {
             {currentIndex + 1} / {photos.length}
           </Text>
         )}
-        <ActionIcon
-          variant="subtle"
-          ml="auto"
-          onClick={() => setInfoOpen((prev) => !prev)}
-        >
-          <IconInfoCircle size={18} />
-        </ActionIcon>
+        <Group ml="auto" gap={4}>
+          <ActionIcon variant="subtle" onClick={rotateLeft}>
+            <IconRotate size={18} />
+          </ActionIcon>
+          <ActionIcon variant="subtle" onClick={rotateRight}>
+            <IconRotateClockwise size={18} />
+          </ActionIcon>
+          <ActionIcon
+            variant="subtle"
+            onClick={() => setInfoOpen((prev) => !prev)}
+          >
+            <IconInfoCircle size={18} />
+          </ActionIcon>
+        </Group>
       </Group>
       <div className={styles.body}>
         <div className={styles.viewer}>
@@ -112,6 +130,7 @@ const PhotoViewer = () => {
                   }
                 : undefined
             }
+            rotation={rotation}
           />
           {nextPhoto && (
             <Link

@@ -13,11 +13,17 @@ type ImageViewerProps = {
     width: number;
     height: number;
   };
+  rotation?: number;
 };
 
 const DEFAULT_WHEEL_STEP = 1;
 
-export const ImageViewer = ({ src, size, alt }: ImageViewerProps) => {
+export const ImageViewer = ({
+  src,
+  size,
+  alt,
+  rotation = 0,
+}: ImageViewerProps) => {
   const transformComponentRef = useRef<ReactZoomPanPinchRef | null>(null);
 
   const handleWheel = (event: React.WheelEvent) => {
@@ -51,10 +57,11 @@ export const ImageViewer = ({ src, size, alt }: ImageViewerProps) => {
         <TransformComponent>
           <img
             src={src}
-            className={styles.image}
+            className={`${styles.image} ${rotation % 180 !== 0 ? styles.rotated : ""}`}
             alt={alt}
             width={size?.width}
             height={size?.height}
+            data-rotation={rotation}
           />
         </TransformComponent>
       </TransformWrapper>
