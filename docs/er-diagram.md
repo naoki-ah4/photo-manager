@@ -35,7 +35,7 @@ erDiagram
         TEXT lens_model
         INTEGER iso
         REAL f_number
-        TEXT exposure_time
+        REAL exposure_time
         REAL focal_length
         REAL focal_length_35mm
         REAL gps_latitude

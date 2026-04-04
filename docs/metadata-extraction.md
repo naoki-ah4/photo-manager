@@ -26,6 +26,7 @@
    a. EXIF読み取り (read_exif) — ロックなし
    b. トランザクションで一括UPDATE — 1回のロック
       metadata_extracted_atを現在時刻(UNIX TIME)で更新
+   c. プログレスイベント発行 (exif:progress)
 ```
 
 ### チャンク処理
@@ -48,7 +49,7 @@ EXIF読み取りをまとめて行い、結果を集めてからトランザク�
 | `lens_model` | `LensModel` | `String` | レンズ名 |
 | `iso` | `PhotographicSensitivity` | `u32` | ISO感度 |
 | `f_number` | `FNumber` | `f64` | 絞り値 (Rational) |
-| `exposure_time` | `ExposureTime` | `String` | シャッタースピード (表示値) |
+| `exposure_time` | `ExposureTime` | `f64` | シャッタースピード (秒数をREALで保存、表示時にフォーマット) |
 | `focal_length` | `FocalLength` | `f64` | 実焦点距離mm (Rational) |
 | `focal_length_35mm` | `FocalLengthIn35mmFilm` | `f64` | 35mm換算焦点距離。カメラが記録していない場合はNULL |
 | `gps_latitude` | `GPSLatitude` + `GPSLatitudeRef` | `f64` | 十進法に変換。南緯は負の値 |
@@ -69,6 +70,15 @@ decimal = degrees + minutes/60 + seconds/3600
 - ファイルを開けない場合: 全フィールドNULLでUPDATE（`metadata_extracted_at` は更新される）
 - EXIFが存在しない場合: 同上（PNGなどEXIF非対応フォーマット）
 - 個別タグが存在しない場合: そのフィールドのみNULL
+
+## プログレスイベント
+
+`commands.rs` から `exif:progress` イベントを発行し、フロントエンドでトースト通知に表示する。
+
+| フィールド | 型 | 説明 |
+|-----------|------|------|
+| `done` | `usize` | 処理済み件数 |
+| `total` | `usize` | 全対象件数 |
 
 ## モジュール構成
 

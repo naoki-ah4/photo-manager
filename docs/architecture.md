@@ -28,7 +28,7 @@ SQLiteのデフォルトではDB書き込み中に読み取りもブロックさ
 | アクセス元 | 用途 |
 |-----------|------|
 | Rust (rusqlite) | フォルダスキャン・一括INSERT、EXIF解析、ファイルハッシュ計算、ファイル監視 |
-| TS (tauri-plugin-sql) | 一覧取得、タグ/アルバムCRUD、レーティング更新など軽量な読み書き |
+| TS (tauri-plugin-sql) | 一覧取得、レーティング更新など軽量な読み書き |
 
 役割分担の原則: I/O・CPU負荷の高い処理はRust、CRUD中心の操作はフロントから直接。
 
@@ -116,18 +116,19 @@ wouter によるクライアントサイドルーティング。
 
 ```
 /                                    — 全写真一覧
-/folders/:folderId                   — フォルダ内写真一覧
-/folders/:folderId/photos/:id        — 写真ビューワー (folderId="all" で全体)
+/directories/:directoryId            — フォルダ内写真一覧
+/directories/:directoryId/photos/:id — 写真ビューワー (directoryId="all" で全体)
 /settings                            — 設定
 ```
 
-ビューワーのルートにfolderIdを含めることで、遷移元のコンテキスト（全体 or フォルダ）がURLから確定する。
+ビューワーのルートにdirectoryIdを含めることで、遷移元のコンテキスト（全体 or フォルダ）がURLから確定する。
 
 ### データ取得
 
-- **DBクエリ**: 各コンポーネント内で `lib/db.ts` 経由のKyselyクエリを直接記述
+- **DBクエリ**: 各コンポーネント内で `lib/db.ts` 経由のKyselyクエリを直接記述。共通クエリは `lib/queries/` に切り出し
 - **IPCコマンド**: `lib/commands.ts` に `invoke` 呼び出しを集約
 - **キャッシュ**: SWR。キーは `lib/swrKeys.ts` で一元管理
+- **検索**: `lib/search.ts` でクエリをトークン分割し、DB側でフィルタリング・ソート
 
 ## 実装フェーズ
 
@@ -136,17 +137,17 @@ wouter によるクライアントサイドルーティング。
 - `watch_folders` に登録 → Rustでディレクトリを再帰走査 → `photos` テーブルにINSERT
 - フロントから写真一覧をSELECTして表示
 
-### Phase 2: EXIF + サムネイル
-- Rust側でEXIF解析 → メタデータ書き込み
-- サムネイル生成 → redbに保存
+### Phase 2: EXIF + サムネイル + 検索
+- Rust側でEXIF解析 → メタデータ書き込み（チャンク処理 + プログレス通知）
+- サムネイル生成 → redbに保存（EXIF Orientation対応）
 - カスタムプロトコル `thumb://` でサムネイル配信
-- 仮想スクロールでグリッド表示
+- 仮想スクロールでグリッド/リスト表示（ビュー切替 + スクロール位置復元）
+- ディレクトリツリーをサイドバーに表示
+- 検索機能（`camera:`, `lens:`, `before:`, `after:`, `sort:` トークン対応）
+- 右クリックコンテキストメニュー（エクスプローラーで開く等）
+- バックグラウンドスキャン + トースト通知によるプログレス表示
 
-### Phase 3: タグ / アルバム
-- スキーマ追加（マイグレーション）
-- フロントからCRUD
-
-### Phase 4: 検索 + ファイル監視
-- EXIF条件検索、全文検索
+### Phase 3: ファイル監視 + 拡張
+- 全文検索 (FTS5)
 - `notify` クレートでリアルタイム同期
 - RAW対応（将来）

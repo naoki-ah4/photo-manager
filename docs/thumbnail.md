@@ -32,7 +32,7 @@ thumb://localhost/{photo_id}?generate=false    — キャッシュがなけれ�
 5. SELECT file_path (SQLite、短時間ロック)
    ↓
 6. 画像処理 (ロックなし)
-   デコード → 正方形クロップ+リサイズ(1パス) → WebPエンコード
+   デコード → EXIF Orientation適用 → 正方形クロップ+リサイズ(1パス) → WebPエンコード
    ↓
 7. redb書き込み + SQLite UPDATE (短時間ロック)
    ↓
@@ -44,6 +44,7 @@ thumb://localhost/{photo_id}?generate=false    — キャッシュがなけれ�
 | 項目 | 値 |
 |------|-----|
 | サイズ | 256 x 256 px |
+| EXIF Orientation | 自動適用 (1〜8の全回転状態に対応) |
 | クロップ | 中央正方形クロップ |
 | リサイズアルゴリズム | fast_image_resize (SIMD最適化、Lanczos3相当) |
 | 出力フォーマット | WebP |
@@ -113,8 +114,23 @@ src-tauri/src/thumbnail/
 ```
 
 - `store.rs`: redbの読み書きに専念
-- `generate.rs`: 純粋な画像処理、DBやredbに依存しない
+- `generate.rs`: 純粋な画像処理（EXIF Orientation読み取り・適用を含む）、DBやredbに依存しない
 - `protocol.rs`: キャッシュ確認・セマフォ・生成・保存のフロー全体を制御
+
+### EXIF Orientation
+
+`generate.rs` 内の `read_orientation` でEXIF Orientationタグ (1〜8) を読み取り、`apply_orientation` でクロップ前に画像を回転・反転する。Orientationが取得できない場合はデフォルト値 (1: 無回転) を使用する。
+
+| Orientation | 変換 |
+|:-----------:|------|
+| 1 | なし |
+| 2 | 水平反転 |
+| 3 | 180°回転 |
+| 4 | 垂直反転 |
+| 5 | 90°回転 + 水平反転 |
+| 6 | 90°回転 |
+| 7 | 270°回転 + 水平反転 |
+| 8 | 270°回転 |
 
 ## 将来の拡張
 
