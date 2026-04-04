@@ -1,7 +1,9 @@
 import { Box } from "@mantine/core";
 import { Link } from "wouter";
 import type { Photo } from "../../../lib/types";
+import { usePhotoContextMenu } from "../../../lib/usePhotoContextMenu";
 import { Thumbnail } from "../../atoms/Thumbnail";
+import { PhotoContextMenu } from "../PhotoContextMenu";
 import styles from "./index.module.css";
 
 type PhotoGridItemProps = {
@@ -9,12 +11,27 @@ type PhotoGridItemProps = {
   photo: Photo;
 };
 
-export const PhotoGridItem = ({ directoryId, photo }: PhotoGridItemProps) => (
-  <Box
-    component={Link}
-    href={`/directories/${directoryId}/photos/${photo.id}`}
-    className={styles.item}
-  >
-    <Thumbnail photoId={photo.id} size="100%" />
-  </Box>
-);
+export const PhotoGridItem = ({ directoryId, photo }: PhotoGridItemProps) => {
+  const { state, handleContextMenu, close } = usePhotoContextMenu();
+
+  return (
+    <>
+      <Box
+        component={Link}
+        href={`/directories/${directoryId}/photos/${photo.id}`}
+        className={styles.item}
+        //@ts-expect-error onContextMenu propが無いといわれるが、実際には存在するためエラーを無視
+        onContextMenu={handleContextMenu}
+      >
+        <Thumbnail photoId={photo.id} size="100%" />
+      </Box>
+      <PhotoContextMenu
+        opened={state.opened}
+        x={state.x}
+        y={state.y}
+        filePath={photo.file_path}
+        onClose={close}
+      />
+    </>
+  );
+};

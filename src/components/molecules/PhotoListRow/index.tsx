@@ -1,7 +1,9 @@
 import { Table } from "@mantine/core";
 import { useLocation } from "wouter";
 import type { Photo } from "../../../lib/types";
+import { usePhotoContextMenu } from "../../../lib/usePhotoContextMenu";
 import { Thumbnail } from "../../atoms/Thumbnail";
+import { PhotoContextMenu } from "../PhotoContextMenu";
 import styles from "./index.module.css";
 
 type PhotoListRowProps = {
@@ -23,23 +25,34 @@ const formatDate = (takenAt: string | null): string => {
 
 export const PhotoListRow = ({ directoryId, photo }: PhotoListRowProps) => {
   const [, setLocation] = useLocation();
+  const { state, handleContextMenu, close } = usePhotoContextMenu();
 
   return (
-    <Table.Tr
-      onClick={() =>
-        setLocation(`/directories/${directoryId}/photos/${photo.id}`)
-      }
-      className={styles.row}
-    >
-      <Table.Td>
-        <Thumbnail photoId={photo.id} size={40} />
-      </Table.Td>
-      <Table.Td>{photo.file_name}</Table.Td>
-      <Table.Td>{formatDate(photo.taken_at)}</Table.Td>
-      <Table.Td>{formatFileSize(photo.file_size)}</Table.Td>
-      <Table.Td>
-        {photo.width && photo.height ? `${photo.width}×${photo.height}` : "-"}
-      </Table.Td>
-    </Table.Tr>
+    <>
+      <Table.Tr
+        onClick={() =>
+          setLocation(`/directories/${directoryId}/photos/${photo.id}`)
+        }
+        onContextMenu={handleContextMenu}
+        className={styles.row}
+      >
+        <Table.Td>
+          <Thumbnail photoId={photo.id} size={40} />
+        </Table.Td>
+        <Table.Td>{photo.file_name}</Table.Td>
+        <Table.Td>{formatDate(photo.taken_at)}</Table.Td>
+        <Table.Td>{formatFileSize(photo.file_size)}</Table.Td>
+        <Table.Td>
+          {photo.width && photo.height ? `${photo.width}×${photo.height}` : "-"}
+        </Table.Td>
+      </Table.Tr>
+      <PhotoContextMenu
+        opened={state.opened}
+        x={state.x}
+        y={state.y}
+        filePath={photo.file_path}
+        onClose={close}
+      />
+    </>
   );
 };

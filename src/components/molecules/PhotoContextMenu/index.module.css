@@ -1,0 +1,21 @@
+.menu {
+  position: fixed;
+  z-index: 100;
+  min-width: 200px;
+  padding: 4px;
+}
+
+.menuItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 12px;
+  border-radius: var(--mantine-radius-sm);
+  cursor: pointer;
+  font-size: var(--mantine-font-size-sm);
+}
+
+.menuItem:hover {
+  background-color: var(--mantine-color-default-hover);
+}
