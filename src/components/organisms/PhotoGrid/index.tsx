@@ -1,5 +1,6 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ScrollingContext } from "../../../lib/scrollingContext";
 import type { Photo } from "../../../lib/types";
 import { useScrollRestore } from "../../../lib/useScrollRestoration";
 import { PhotoGridItem } from "../../molecules/PhotoGridItem";
@@ -88,30 +89,32 @@ export const PhotoGrid = ({
   );
 
   return (
-    <div ref={scrollRef} className={styles.scrollContainer}>
-      <div
-        className={styles.virtualList}
-        style={{ height: virtualizer.getTotalSize() }}
-      >
-        {virtualizer.getVirtualItems().map((virtualRow) => (
-          <div
-            key={virtualRow.key}
-            className={`${styles.row} ${columnClass[columns]}`}
-            style={{
-              height: virtualRow.size,
-              transform: `translateY(${virtualRow.start}px)`,
-            }}
-          >
-            {rows[virtualRow.index].map((photo) => (
-              <PhotoGridItem
-                key={photo.id}
-                directoryId={directoryId}
-                photo={photo}
-              />
-            ))}
-          </div>
-        ))}
+    <ScrollingContext value={virtualizer.isScrolling}>
+      <div ref={scrollRef} className={styles.scrollContainer}>
+        <div
+          className={styles.virtualList}
+          style={{ height: virtualizer.getTotalSize() }}
+        >
+          {virtualizer.getVirtualItems().map((virtualRow) => (
+            <div
+              key={virtualRow.key}
+              className={`${styles.row} ${columnClass[columns]}`}
+              style={{
+                height: virtualRow.size,
+                transform: `translateY(${virtualRow.start}px)`,
+              }}
+            >
+              {rows[virtualRow.index].map((photo) => (
+                <PhotoGridItem
+                  key={photo.id}
+                  directoryId={directoryId}
+                  photo={photo}
+                />
+              ))}
+            </div>
+          ))}
+        </div>
       </div>
-    </div>
+    </ScrollingContext>
   );
 };

@@ -2,18 +2,18 @@ use rusqlite::params;
 use std::path::Path;
 use std::sync::Mutex;
 use std::time::{SystemTime, UNIX_EPOCH};
-use std_semaphore::Semaphore;
 
 use super::generate::generate_thumbnail;
+use super::limiter::LifoLimiter;
 use super::store::ThumbnailStore;
 
 pub struct ThumbnailState {
   pub store: ThumbnailStore,
-  pub semaphore: Semaphore,
+  pub limiter: LifoLimiter,
 }
 
 /// サムネイルリクエストを処理する。
-/// キャッシュがあればそのまま返し、なければ semaphore で並行制御しつつ生成する。
+/// キャッシュがあればそのまま返し、なければ limiter で並行制御しつつ生成する（新しいリクエスト優先）。
 /// allow_generate=false の場合、キャッシュミス時は None を返す。
 pub fn handle_request(
   thumb_state: &ThumbnailState,
@@ -30,10 +30,10 @@ pub fn handle_request(
     return None;
   }
 
-  // セマフォで同時生成数を制限
-  let _guard = thumb_state.semaphore.access();
+  // 同時生成数を制限（待機中は新しいリクエストから順に通す）
+  let _guard = thumb_state.limiter.acquire();
 
-  // redb再チェック（セマフォ待ち中に別スレッドが生成済みの可能性）
+  // redb再チェック（待機中に別スレッドが生成済みの可能性）
   if let Ok(Some(data)) = thumb_state.store.get(photo_id) {
     return Some(data);
   }

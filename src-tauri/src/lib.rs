@@ -7,7 +7,6 @@ mod scan;
 mod scanner;
 mod thumbnail;
 
-use std_semaphore::Semaphore;
 use tauri::http::Response;
 use tauri::Manager;
 
@@ -25,14 +24,14 @@ pub fn run() {
       let store = thumbnail::ThumbnailStore::open(&app_data_dir)
         .expect("failed to initialize thumbnail store");
 
-      let max_concurrent = (num_cpus::get_physical().saturating_sub(1)).max(1) as isize;
+      let max_concurrent = num_cpus::get_physical().saturating_sub(1).max(1);
 
       app.manage(db::DbState {
         conn: std::sync::Mutex::new(conn),
       });
       app.manage(thumbnail::ThumbnailState {
         store,
-        semaphore: Semaphore::new(max_concurrent),
+        limiter: thumbnail::LifoLimiter::new(max_concurrent),
       });
 
       // tauri-plugin-sql uses the same DB file
