@@ -178,6 +178,7 @@ const Settings = () => {
   }, [extracting]);
 
   const handleResetDb = async () => {
+    await db.deleteFrom("photo_files").execute();
     await db.deleteFrom("photos").execute();
     await db.deleteFrom("directories").execute();
     await mutate(() => true, undefined, { revalidate: true });

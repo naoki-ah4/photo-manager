@@ -1,5 +1,6 @@
 import { type SqlBool, sql } from "kysely";
 import { db } from "../db";
+import { RAW_EXTENSIONS } from "../fileKind";
 import type { SearchFilter, SortClause } from "../search";
 
 type PhotoQueryParams = {
@@ -7,6 +8,30 @@ type PhotoQueryParams = {
   filters: SearchFilter[];
   sorts: SortClause[];
 };
+
+const isRawPath = sql.join(
+  RAW_EXTENSIONS.map((ext) => sql`LOWER(f.file_path) LIKE ${`%.${ext}`}`),
+  sql` OR `,
+);
+
+/**
+ * photos に preview_file の file_path / file_size / file_modified_at を結合して取得する。
+ * has_raw: 紐付くファイルにRAWが含まれるか (0/1)
+ */
+export const selectPhotos = () =>
+  db
+    .selectFrom("photos")
+    .innerJoin("photo_files", "photo_files.id", "photos.preview_file_id")
+    .selectAll("photos")
+    .select([
+      "photo_files.file_path",
+      "photo_files.file_size",
+      "photo_files.file_modified_at",
+      sql<number>`EXISTS (
+        SELECT 1 FROM photo_files f
+        WHERE f.photo_id = photos.id AND (${isRawPath})
+      )`.as("has_raw"),
+    ]);
 
 const tzOffsetSeconds = new Date().getTimezoneOffset() * -60;
 
@@ -33,7 +58,7 @@ export const fetchPhotosWithSearch = ({
   filters,
   sorts,
 }: PhotoQueryParams) => {
-  let query = db.selectFrom("photos").selectAll();
+  let query = selectPhotos();
 
   if (directoryId) {
     query = query.where(

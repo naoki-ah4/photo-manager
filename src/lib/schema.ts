@@ -19,18 +19,26 @@ export interface Directories {
   watch_folder_id: string;
 }
 
+export interface PhotoFiles {
+  created_at: Generated<number>;
+  file_hash: string | null;
+  file_modified_at: number;
+  file_path: string;
+  file_size: number;
+  id: string;
+  photo_id: string;
+  updated_at: Generated<number>;
+}
+
 export interface Photos {
+  base_name: string;
   camera_make: string | null;
   camera_model: string | null;
   created_at: Generated<number>;
   directory_id: string;
   exposure_time: number | null;
   f_number: number | null;
-  file_hash: string | null;
-  file_modified_at: number;
-  file_name: string;
-  file_path: string;
-  file_size: number;
+  file_name: Generated<string>;
   focal_length: number | null;
   focal_length_35mm: number | null;
   gps_latitude: number | null;
@@ -41,6 +49,8 @@ export interface Photos {
   iso: number | null;
   lens_model: string | null;
   metadata_extracted_at: number | null;
+  metadata_file_id: string | null;
+  preview_file_id: string | null;
   rating: Generated<number>;
   taken_at: string | null;
   thumbnail_generated_at: number | null;
@@ -57,6 +67,7 @@ export interface WatchFolders {
 
 export interface DB {
   directories: Directories;
+  photo_files: PhotoFiles;
   photos: Photos;
   watch_folders: WatchFolders;
 }

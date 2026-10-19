@@ -1,6 +1,7 @@
 mod commands;
 mod db;
 mod exif;
+mod file_kind;
 mod photo;
 mod scan;
 mod scanner;

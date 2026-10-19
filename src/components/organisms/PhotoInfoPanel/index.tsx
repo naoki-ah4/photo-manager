@@ -1,4 +1,7 @@
 import { Stack, Text } from "@mantine/core";
+import useSWR from "swr";
+import { fetchPhotoFiles } from "../../../lib/queries/photoFiles";
+import { SWRKeys } from "../../../lib/swrKeys";
 import type { Photo } from "../../../lib/types";
 import styles from "./index.module.scss";
 
@@ -9,7 +12,8 @@ type PhotoInfoPanelProps = {
 
 type InfoItem = {
   label: string;
-  value: string | undefined;
+  /** 配列の場合は1要素1行で表示する */
+  value: string | string[] | undefined;
 };
 
 const formatExposureTime = (value: number): string => {
@@ -45,7 +49,9 @@ const InfoSection = ({
   title: string;
   items: InfoItem[];
 }) => {
-  const visibleItems = items.filter((item) => item.value);
+  const visibleItems = items.filter((item) =>
+    Array.isArray(item.value) ? item.value.length > 0 : item.value,
+  );
   if (visibleItems.length === 0) return null;
 
   return (
@@ -57,7 +63,17 @@ const InfoSection = ({
         {visibleItems.map((item) => (
           <div key={item.label}>
             <Text className={styles.label}>{item.label}</Text>
-            <Text className={styles.value}>{item.value}</Text>
+            {Array.isArray(item.value) ? (
+              item.value.map((line, i) => (
+                // 同じ値が並びうる（同サイズのファイル等）うえ、並び順は固定のため index を key にする
+                // biome-ignore lint/suspicious/noArrayIndexKey: 上記理由
+                <Text key={i} className={styles.value}>
+                  {line}
+                </Text>
+              ))
+            ) : (
+              <Text className={styles.value}>{item.value}</Text>
+            )}
           </div>
         ))}
       </Stack>
@@ -65,10 +81,35 @@ const InfoSection = ({
   );
 };
 
+const baseName = (path: string): string => path.split(/[\\/]/).pop() ?? path;
+
 export const PhotoInfoPanel = ({ photo, open }: PhotoInfoPanelProps) => {
+  const { data: files = [] } = useSWR(SWRKeys.photoFiles(photo.id), () =>
+    fetchPhotoFiles(photo.id),
+  );
+
   const fileItems: InfoItem[] = [
-    { label: "ファイル名", value: photo.file_name },
-    { label: "ファイルサイズ", value: formatFileSize(photo.file_size) },
+    {
+      label: "ファイル名",
+      value:
+        files.length > 0
+          ? files.map((file) => {
+              const roles = [
+                file.id === photo.preview_file_id ? "表示" : undefined,
+                file.id === photo.metadata_file_id ? "EXIF" : undefined,
+              ].filter((role) => role !== undefined);
+              const name = baseName(file.file_path);
+              return roles.length > 0 ? `${name}（${roles.join("・")}）` : name;
+            })
+          : photo.file_name,
+    },
+    {
+      label: "ファイルサイズ",
+      value:
+        files.length > 0
+          ? files.map((file) => formatFileSize(file.file_size))
+          : formatFileSize(photo.file_size),
+    },
     {
       label: "解像度",
       value:

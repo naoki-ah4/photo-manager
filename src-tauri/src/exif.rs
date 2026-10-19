@@ -53,9 +53,10 @@ pub fn extract_pending(
 
 fn fetch_pending(conn: &Connection) -> Result<Vec<PhotoForExif>, rusqlite::Error> {
   let mut stmt = conn.prepare(
-    "SELECT id, file_path FROM photos
-         WHERE metadata_extracted_at IS NULL
-            OR file_modified_at > metadata_extracted_at",
+    "SELECT photos.id, photo_files.file_path FROM photos
+             JOIN photo_files ON photos.metadata_file_id = photo_files.id
+         WHERE photos.metadata_extracted_at IS NULL
+            OR photo_files.file_modified_at > photos.metadata_extracted_at",
   )?;
 
   let photos = stmt

@@ -8,8 +8,10 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import useSWR from "swr";
 import { Link, useLocation, useParams } from "wouter";
-import { db } from "../../../lib/db";
-import { fetchPhotosWithSearch } from "../../../lib/queries/photos";
+import {
+  fetchPhotosWithSearch,
+  selectPhotos,
+} from "../../../lib/queries/photos";
 import { parseSearchQuery } from "../../../lib/search";
 import { SWRKeys } from "../../../lib/swrKeys";
 import { ImageViewer } from "../../organisms/ImageViewer";
@@ -19,7 +21,7 @@ import styles from "./index.module.scss";
 const SEARCH_STORAGE_KEY = "searchQuery";
 
 const fetchPhoto = (id: string) =>
-  db.selectFrom("photos").selectAll().where("id", "=", id).executeTakeFirst();
+  selectPhotos().where("photos.id", "=", id).executeTakeFirst();
 
 const PhotoViewer = () => {
   const [infoOpen, setInfoOpen] = useState(true);

@@ -7,7 +7,9 @@ fn lookup_file_path(conn: &Mutex<rusqlite::Connection>, photo_id: &str) -> Optio
   let conn = conn.lock().unwrap();
   conn
     .query_row(
-      "SELECT file_path FROM photos WHERE id = ?1",
+      "SELECT photo_files.file_path FROM photos
+         JOIN photo_files ON photos.preview_file_id = photo_files.id
+         WHERE photos.id = ?1",
       params![photo_id],
       |row| row.get(0),
     )

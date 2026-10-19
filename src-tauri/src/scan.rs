@@ -42,6 +42,10 @@ pub fn scan_one(
   for id in &result.deleted_ids {
     let _ = thumb_store.delete(id);
   }
+  // preview_file_id が変わった写真もサムネ再生成のためキャッシュを削除
+  for id in &result.preview_changed_ids {
+    let _ = thumb_store.delete(id);
+  }
 
   Ok(result.upserted)
 }

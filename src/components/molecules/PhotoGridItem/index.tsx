@@ -1,4 +1,4 @@
-import { Box } from "@mantine/core";
+import { Badge, Box } from "@mantine/core";
 import { Link } from "wouter";
 import type { Photo } from "../../../lib/types";
 import { usePhotoContextMenu } from "../../../lib/usePhotoContextMenu";
@@ -24,6 +24,11 @@ export const PhotoGridItem = ({ directoryId, photo }: PhotoGridItemProps) => {
         onContextMenu={handleContextMenu}
       >
         <Thumbnail photoId={photo.id} size="100%" />
+        {photo.has_raw === 1 && (
+          <Badge size="xs" radius="sm" className={styles.rawBadge}>
+            RAW
+          </Badge>
+        )}
       </Box>
       <PhotoContextMenu
         opened={state.opened}
