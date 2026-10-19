@@ -1,7 +1,10 @@
 import { Table } from "@mantine/core";
 import { useVirtualizer } from "@tanstack/react-virtual";
 import { useLayoutEffect, useRef, useState } from "react";
-import { ScrollingContext } from "../../../lib/scrollingContext";
+import {
+  DeferThumbnailContext,
+  shouldDeferThumbnail,
+} from "../../../lib/deferThumbnail";
 import type { Photo } from "../../../lib/types";
 import { useScrollRestore } from "../../../lib/useScrollRestoration";
 import { PhotoListRow } from "../../molecules/PhotoListRow";
@@ -50,45 +53,51 @@ export const PhotoList = ({
       : 0;
 
   return (
-    <ScrollingContext value={virtualizer.isScrolling}>
-      <div ref={scrollRef} className={styles.scrollContainer}>
-        <Table highlightOnHover>
-          <Table.Thead className={styles.stickyHeader}>
-            <Table.Tr>
-              <Table.Th w={50} />
-              <Table.Th>ファイル名</Table.Th>
-              <Table.Th>撮影日時</Table.Th>
-              <Table.Th>サイズ</Table.Th>
-              <Table.Th>解像度</Table.Th>
-            </Table.Tr>
-          </Table.Thead>
-          <Table.Tbody>
-            {paddingTop > 0 && (
-              <tr>
-                <td
-                  colSpan={5}
-                  style={{ height: paddingTop, padding: 0, border: "none" }}
-                />
-              </tr>
-            )}
-            {virtualItems.map((virtualRow) => (
+    <div ref={scrollRef} className={styles.scrollContainer}>
+      <Table highlightOnHover>
+        <Table.Thead className={styles.stickyHeader}>
+          <Table.Tr>
+            <Table.Th w={50} />
+            <Table.Th>ファイル名</Table.Th>
+            <Table.Th>撮影日時</Table.Th>
+            <Table.Th>サイズ</Table.Th>
+            <Table.Th>解像度</Table.Th>
+          </Table.Tr>
+        </Table.Thead>
+        <Table.Tbody>
+          {paddingTop > 0 && (
+            <tr>
+              <td
+                colSpan={5}
+                style={{ height: paddingTop, padding: 0, border: "none" }}
+              />
+            </tr>
+          )}
+          {virtualItems.map((virtualRow) => (
+            <DeferThumbnailContext
+              key={photos[virtualRow.index].id}
+              value={shouldDeferThumbnail(
+                virtualizer.isScrolling,
+                virtualizer.range,
+                virtualRow.index,
+              )}
+            >
               <PhotoListRow
-                key={photos[virtualRow.index].id}
                 directoryId={directoryId}
                 photo={photos[virtualRow.index]}
               />
-            ))}
-            {paddingBottom > 0 && (
-              <tr>
-                <td
-                  colSpan={5}
-                  style={{ height: paddingBottom, padding: 0, border: "none" }}
-                />
-              </tr>
-            )}
-          </Table.Tbody>
-        </Table>
-      </div>
-    </ScrollingContext>
+            </DeferThumbnailContext>
+          ))}
+          {paddingBottom > 0 && (
+            <tr>
+              <td
+                colSpan={5}
+                style={{ height: paddingBottom, padding: 0, border: "none" }}
+              />
+            </tr>
+          )}
+        </Table.Tbody>
+      </Table>
+    </div>
   );
 };

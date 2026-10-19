@@ -35,6 +35,11 @@ num_cpus = "1.17.0"
 fast_image_resize = { version = "6.0.0", features = ["image"] }
 tauri-plugin-dialog = "2.6.0"
 
+# fast_image_resize 等のジェネリック関数は呼び出し側（本クレート）で単相化されるため、
+# 依存側の最適化だけでは効かない（opt-level=0 だとサムネのリサイズが約150倍遅い）
+[profile.dev]
+opt-level = 1
+
 [profile.dev.package."*"]
 opt-level = 2
 

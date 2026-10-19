@@ -1,6 +1,6 @@
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { useContext, useEffect, useState } from "react";
-import { ScrollingContext } from "../../../lib/scrollingContext";
+import { DeferThumbnailContext } from "../../../lib/deferThumbnail";
 import styles from "./index.module.css";
 
 type ThumbnailProps = {
@@ -9,16 +9,16 @@ type ThumbnailProps = {
 };
 
 export const Thumbnail = ({ photoId, size = 64 }: ThumbnailProps) => {
-  const isScrolling = useContext(ScrollingContext);
-  // スクロール中にマウントされた場合はキャッシュのみ取得し、生成要求で待ち行列を溢れさせない
-  const [cacheOnly, setCacheOnly] = useState(isScrolling);
+  const deferred = useContext(DeferThumbnailContext);
+  // 後回し指定（スクロール中・画面外の先読み）の間はキャッシュのみ取得し、生成要求で待ち行列を溢れさせない
+  const [cacheOnly, setCacheOnly] = useState(deferred);
   const [cacheMissed, setCacheMissed] = useState(false);
 
   useEffect(() => {
-    if (!isScrolling && cacheMissed) {
+    if (!deferred && cacheMissed) {
       setCacheOnly(false);
     }
-  }, [isScrolling, cacheMissed]);
+  }, [deferred, cacheMissed]);
 
   const src = convertFileSrc(photoId, "thumb");
 
