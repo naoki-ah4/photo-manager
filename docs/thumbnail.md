@@ -2,7 +2,7 @@
 
 ## 概要
 
-写真のサムネイルをオンザフライで生成し、redb（KVS）にキャッシュする。`image` クレートで画像処理を行い、`std-semaphore` で並行制御する。
+写真のサムネイルをオンザフライで生成し、redb（KVS）にキャッシュする。`image` クレートで画像処理を行い、自前の LIFO リミッターで並行制御する。
 
 ## 配信方式
 
@@ -25,18 +25,19 @@ thumb://localhost/{photo_id}?generate=false    — キャッシュがなけれ�
    ↓ ミス
 2. generate=false → 404
    ↓
-3. セマフォ取得 (同時生成数を制限)
+3. 実行枠を獲得 (同時生成数を制限、待機中は新しいリクエストから)
    ↓
-4. redb再チェック (セマフォ待ち中に別スレッドが生成済みの可能性)
+4. redb再チェック (待機中に別スレッドが生成済みの可能性)
    ↓
-5. SELECT file_path (SQLite、短時間ロック)
+5. preview_file の file_path を SELECT (SQLite、短時間ロック)
    ↓
 6. 画像処理 (ロックなし)
-   デコード → EXIF Orientation適用 → 正方形クロップ+リサイズ(1パス) → WebPエンコード
+   ファイル読み込み(1回) → EXIF Orientation読み取り → デコード → Orientation適用
+   → 正方形クロップ+リサイズ(1パス) → WebPエンコード
    ↓
 7. redb書き込み + SQLite UPDATE (短時間ロック)
    ↓
-8. セマフォ解放 → 返却
+8. 実行枠を解放 → 返却
 ```
 
 ## サムネイル仕様
@@ -66,13 +67,21 @@ thumb://localhost/{photo_id}?generate=false    — キャッシュがなけれ�
 
 ## 並行制御
 
-### 同時生成数の制限 (std-semaphore)
+### 同時生成数の制限 (LifoLimiter)
 
-`std_semaphore::Semaphore` で同時に画像処理を行うスレッド数を制限する。
+`thumbnail/limiter.rs` の `LifoLimiter`（`Mutex` + `Condvar`）で同時に画像処理を行うスレッド数を制限する。
 
 - 上限: 物理コア数 - 1（`num_cpus::get_physical() - 1`、最低1スレッド）
 - 1コアをOS・UIスレッド用に確保する
-- redb書き込みが詰まった場合もセマフォが解放されないため、自然にバックプレッシャーがかかる
+- 待機中のリクエストは**後から来た順（LIFO）**に通す。スクロールで通り過ぎたサムネより、今画面にあるサムネ（=最新のリクエスト）を優先するため
+- redb書き込みが詰まった場合も実行枠が解放されないため、自然にバックプレッシャーがかかる
+
+### フロント側の生成抑制
+
+生成要求が待ち行列に溢れないよう、フロントは `DeferThumbnailContext`（`src/lib/deferThumbnail.ts`）で生成の要求を後回しにする。
+
+- 仮想スクロール中、およびオーバースキャン行（画面外の先読み）では `?generate=false` でキャッシュのみ取得する
+- キャッシュミスした `Thumbnail` は、後回し指定が解除された（スクロール停止・画面内に入った）時点で生成を要求する
 
 ### ロックの最小化
 
@@ -86,9 +95,14 @@ conn.lock() → UPDATE thumbnail_generated_at → unlock
 
 ### ビルドプロファイル
 
-`image` クレート等の依存ライブラリはdev時でも `opt-level = 2` で最適化する。未最適化だとデコード・リサイズが10倍以上遅くなる。
+dev時でも依存ライブラリは `opt-level = 2`、本クレートは `opt-level = 1` で最適化する。
+
+`fast_image_resize` 等のジェネリック関数は呼び出し側（本クレート）で単相化されるため、依存側の最適化だけでは効かない。本クレートが `opt-level = 0` だとリサイズが約150倍遅くなる（24MPで 約1.2秒 → 約10ms）。
 
 ```toml
+[profile.dev]
+opt-level = 1
+
 [profile.dev.package."*"]
 opt-level = 2
 ```
@@ -110,12 +124,14 @@ src-tauri/src/thumbnail/
   mod.rs          — pub use で公開API定義
   store.rs        — ThumbnailStore (redb操作: get/set/delete)
   generate.rs     — 画像処理 (デコード→クロップ→リサイズ→エンコード)
+  limiter.rs      — LifoLimiter (同時生成数の制限)
   protocol.rs     — ThumbnailState + handle_request (プロトコルハンドラ)
 ```
 
 - `store.rs`: redbの読み書きに専念
 - `generate.rs`: 純粋な画像処理（EXIF Orientation読み取り・適用を含む）、DBやredbに依存しない
-- `protocol.rs`: キャッシュ確認・セマフォ・生成・保存のフロー全体を制御
+- `limiter.rs`: LifoLimiter (同時実行数の制限、LIFO順)
+- `protocol.rs`: キャッシュ確認・実行枠の獲得・生成・保存のフロー全体を制御
 
 ### EXIF Orientation
 
